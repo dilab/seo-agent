@@ -3,21 +3,16 @@
 <!-- size: 1200x630 -->
 {{font_link}}
 <style>{{base_css}}
-.frame { flex-direction: row; align-items: center; gap: 56px; padding: 72px 72px 110px; }
-.text { flex: 1 1 0; min-width: 0; }
-h1 { font-size: {{title_size}}px; }
-.subject-slot { flex: 0 0 360px; height: 360px; }
-.no-subject .text { flex-basis: 100%; }
-.no-subject .subject-slot { display: none; }
-.no-subject h1 { max-width: 900px; }
+.frame { padding: 72px 72px 110px; justify-content: center; }
+h1 { font-size: {{title_size}}px; max-width: 1000px; }
+.description { margin-top: 24px; font-size: 26px; color: var(--muted); max-width: 900px; line-height: 1.4; }
+.description:empty { display: none; }
 </style></head>
 <body>
-<div class="frame motif-{{motif}} {{subject_class}}">
-  <div class="text">
-    <div class="eyebrow">{{eyebrow}}</div>
-    <h1>{{title}}</h1>
-  </div>
-  <div class="subject-slot">{{subject_img}}</div>
+<div class="frame motif-{{motif}}">
+  <div class="eyebrow">{{eyebrow}}</div>
+  <h1>{{title}}</h1>
+  <div class="description">{{description}}</div>
   <div class="brandbar">{{logo_html}}<span>{{product}}</span></div>
 </div>
 </body></html>

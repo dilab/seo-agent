@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 const args = parseArgs(process.argv.slice(2));
-const SIZES = { hero: [1200, 630], inline: [1600, 900], stat: [1600, 900], compare: [1600, 900], steps: [1600, 900], quote: [1600, 900] };
+const SIZES = { hero: [1200, 630], stat: [1600, 900], compare: [1600, 900], steps: [1600, 900], quote: [1600, 900] };
 
 main().catch(e => { console.error(e.message || e); process.exit(1); });
 
@@ -56,14 +56,12 @@ function buildHtml(frame, data, brand, framesDir) {
     'logo_html': logoHtml(brand, framesDir),
     'eyebrow': esc(data.eyebrow || ''),
     'title': esc(data.title || ''),
-    'caption': esc(data.caption || ''),
+    'description': esc(data.description || ''),
     'value': esc(data.value || ''),
     'label': esc(data.label || ''),
     'source': esc(data.source || ''),
     'text': esc(data.text || ''),
     'attribution': esc(data.attribution || ''),
-    'subject_img': data.subject_path ? `<img src="${fileUrl(data.subject_path)}" alt="">` : '',
-    'subject_class': data.subject_path ? 'has-subject' : 'no-subject',
     'column_cells': (data.columns || []).map(x => `<th>${esc(x)}</th>`).join(''),
     'row_html': (data.rows || []).map(r => `<tr>${r.map((x, i) => i === 0 ? `<td>${esc(x)}</td>` : `<td>${esc(x)}</td>`).join('')}</tr>`).join(''),
     'step_html': (data.steps || []).map((s, i) => `<div class="step"><div class="num">${i + 1}</div><div class="step-text">${esc(s)}</div></div>`).join(''),
@@ -123,11 +121,8 @@ async function renderHtml(html, w, h, scale, outPath, framesDir) {
 
 async function contactSheet(brand, framesDir, outPath, scale) {
   const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'frames-'));
-  const placeholder = path.join(tmp, 'subject.png');
-  await makePlaceholderSubject(placeholder, brand);
   const samples = {
-    hero: { eyebrow: 'Guide', title: 'How long does Zoom keep cloud recordings?', subject_path: placeholder },
-    inline: { caption: 'Recordings copied to Drive every night', subject_path: placeholder },
+    hero: { eyebrow: 'Guide', title: 'How long does Zoom keep cloud recordings?', description: 'Retention limits by plan, what happens at the cap, and how to keep every recording.' },
     stat: { eyebrow: 'Storage', value: '5 GB', label: 'Included cloud recording storage on a Pro licence', source: 'zoom.us/pricing' },
     compare: { eyebrow: 'Plans', title: 'Cloud recording storage by plan', columns: ['Pro', 'Business', 'Enterprise'], rows: [['Storage', '5 GB', '10 GB', 'Unlimited'], ['Retention', 'Manual', 'Manual', 'Policy'], ['Export', 'One by one', 'One by one', 'Bulk']] },
     steps: { eyebrow: 'Setup', title: 'Back up recordings in three steps', steps: ['Connect your Zoom account', 'Choose a Drive or Dropbox folder', 'Set a retention rule'] },
@@ -159,19 +154,6 @@ async function contactSheet(brand, framesDir, outPath, scale) {
   console.log(JSON.stringify({ out: outPath, frames: rendered.map(r => r.frame) }));
 }
 
-async function makePlaceholderSubject(outPath, brand) {
-  const c = (brand.colors || {});
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
-    <rect width="600" height="600" fill="${c.bg || '#ffffff'}"/>
-    <path d="M160 330a90 90 0 0 1 20-178 120 120 0 0 1 230-30 100 100 0 0 1 30 196z" fill="${c.primary || '#2563eb'}" opacity="0.9"/>
-    <rect x="210" y="360" width="180" height="120" rx="18" fill="${c.accent || '#f59e0b'}"/>
-    <rect x="210" y="340" width="80" height="40" rx="10" fill="${c.accent || '#f59e0b'}"/>
-    <path d="M300 230v120" stroke="${c.text || '#111827'}" stroke-width="18" stroke-linecap="round"/>
-    <path d="M260 310l40 40 40-40" fill="none" stroke="${c.text || '#111827'}" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
-  const sharp = require('sharp');
-  await sharp(Buffer.from(svg)).png().toFile(outPath);
-}
 
 function parseArgs(a) {
   const o = {};

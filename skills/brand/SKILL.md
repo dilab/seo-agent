@@ -60,7 +60,7 @@ Replace the content between the markers if present, else append:
 
 Print: each value with its source file or `default`; the contrast ratios; the diff if `brand.json` existed. Suggest `/seo-agent:frames` as the next step.
 
-Standalone run: commit on branch `seo/brand`, open a PR titled `seo: brand tokens`. When called by `init`, just return.
+Commit on the **current branch** (`seo: brand tokens`) — never create a branch or PR; setup files are config the owner reviews in the diff, and later skills need to see them. When called by `init`, just return.
 
 ## Hard rules
 - Repo only; fetch the live site only if no stylesheet exists anywhere in the repo, and say so

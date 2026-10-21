@@ -1,0 +1,7 @@
+[
+  { "id": "hero", "type": "hero", "eyebrow": "Guide", "title": "How long does Zoom keep cloud recordings?", "alt": "Article hero: How long does Zoom keep cloud recordings" },
+  { "id": "storage", "type": "stat", "eyebrow": "Storage", "value": "5 GB", "label": "Included cloud recording storage on a Pro licence", "source": "zoom.us/pricing", "alt": "Stat: 5 GB included cloud recording storage on Zoom Pro" },
+  { "id": "plans", "type": "compare", "eyebrow": "Plans", "title": "Cloud recording storage by plan", "columns": ["Pro", "Business", "Enterprise"], "rows": [["Storage", "5 GB", "10 GB", "Unlimited"], ["Retention", "Manual", "Manual", "Policy"], ["Export", "One by one", "One by one", "Bulk"]], "alt": "Table comparing Zoom cloud recording storage across Pro, Business and Enterprise plans" },
+  { "id": "setup", "type": "steps", "eyebrow": "Setup", "title": "Back up recordings in three steps", "steps": ["Connect your Zoom account", "Choose a Drive or Dropbox folder", "Set a retention rule"], "alt": "Three steps to back up Zoom recordings" },
+  { "id": "takeaway", "type": "quote", "text": "Zoom deletes what you don't move. Make moving automatic.", "attribution": "RecordMover docs", "alt": "Quote: Zoom deletes what you don't move" }
+]
