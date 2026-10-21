@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- size: 1600x900 -->
+{{font_link}}
+<style>{{base_css}}
+.frame { padding: 96px 96px 130px; justify-content: center; }
+.value {
+  font-family: var(--font-heading); font-weight: 800;
+  font-size: {{value_size}}px; line-height: 0.95; letter-spacing: -0.04em;
+  color: var(--primary);
+}
+.label { margin-top: 28px; font-size: 44px; font-weight: 600; line-height: 1.2; max-width: 1200px; }
+.source { margin-top: 24px; font-size: 24px; color: var(--muted); }
+.source:empty { display: none; }
+</style></head>
+<body>
+<div class="frame motif-{{motif}}">
+  <div class="eyebrow">{{eyebrow}}</div>
+  <div class="value">{{value}}</div>
+  <div class="label">{{label}}</div>
+  <div class="source">{{source}}</div>
+  <div class="brandbar">{{logo_html}}<span>{{product}}</span></div>
+</div>
+</body></html>

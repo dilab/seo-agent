@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- size: 1600x900 -->
+{{font_link}}
+<style>{{base_css}}
+.frame { align-items: center; justify-content: center; padding: 72px 72px 120px; }
+.subject-slot { width: 620px; height: 620px; }
+.caption {
+  margin-top: 28px;
+  font-family: var(--font-heading); font-weight: 600;
+  font-size: 30px; color: var(--text); text-align: center;
+  max-width: 1100px;
+}
+.caption:empty { display: none; }
+</style></head>
+<body>
+<div class="frame motif-{{motif}}">
+  <div class="subject-slot">{{subject_img}}</div>
+  <div class="caption">{{caption}}</div>
+  <div class="brandbar">{{logo_html}}<span>{{product}}</span></div>
+</div>
+</body></html>

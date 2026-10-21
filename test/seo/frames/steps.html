@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- size: 1600x900 -->
+{{font_link}}
+<style>{{base_css}}
+.frame { padding: 72px 72px 120px; justify-content: center; }
+h2 { font-size: 46px; margin-bottom: 40px; }
+h2:empty { display: none; }
+.steps { display: flex; gap: 28px; align-items: stretch; }
+.step { flex: 1 1 0; background: var(--surface); border-radius: var(--radius); padding: 36px 32px; display: flex; flex-direction: column; gap: 18px; }
+.num {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--primary); color: var(--on-primary);
+  font-family: var(--font-heading); font-weight: 700; font-size: 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+.step-text { font-size: 28px; font-weight: 600; line-height: 1.25; }
+</style></head>
+<body>
+<div class="frame motif-{{motif}}">
+  <div class="eyebrow">{{eyebrow}}</div>
+  <h2>{{title}}</h2>
+  <div class="steps">{{step_html}}</div>
+  <div class="brandbar">{{logo_html}}<span>{{product}}</span></div>
+</div>
+</body></html>

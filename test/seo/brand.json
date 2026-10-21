@@ -1,0 +1,7 @@
+{
+  "product": "RecordMover", "domain": "recordmover.com",
+  "colors": { "primary": "#2563eb", "accent": "#f59e0b", "bg": "#ffffff", "surface": "#f1f5f9", "text": "#0f172a", "muted": "#64748b", "on_primary": "#ffffff" },
+  "fonts": { "heading": "Inter", "body": "Inter", "source": "google" },
+  "radius": "14px", "logo": null, "motif": "dots",
+  "derived_from": ["sample"], "defaults_used": []
+}

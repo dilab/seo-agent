@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- size: 1600x900 -->
+{{font_link}}
+<style>{{base_css}}
+.frame { padding: 96px 120px 130px; justify-content: center; }
+.mark { font-family: var(--font-heading); font-size: 160px; line-height: 0.6; color: var(--primary); margin-bottom: 20px; }
+.text { font-family: var(--font-heading); font-weight: 700; font-size: {{text_size}}px; line-height: 1.15; letter-spacing: -0.02em; max-width: 1300px; }
+.attribution { margin-top: 36px; font-size: 28px; color: var(--muted); }
+.attribution:empty { display: none; }
+</style></head>
+<body>
+<div class="frame motif-{{motif}}">
+  <div class="mark">&ldquo;</div>
+  <div class="text">{{text}}</div>
+  <div class="attribution">{{attribution}}</div>
+  <div class="brandbar">{{logo_html}}<span>{{product}}</span></div>
+</div>
+</body></html>
