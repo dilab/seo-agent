@@ -1,109 +1,133 @@
 ---
 name: analysis
-description: Turn seed keywords in /seo/strategy.md into scored backlog items with content briefs. Run weekly or on demand. Seeded mode only (no GSC yet).
+description: Turn the tracked keywords in /seo/strategy.md into scored backlog items, each with a content brief that write/refresh can execute without guessing. Seeded mode (DataForSEO only, no GSC). Honours the `proposed` gate from the keywords skill, scores potential on topic volume, spend-capped. Run weekly or on demand; idempotent within a day.
 ---
 
 # analysis — seeded mode
 
-You turn each tracked keyword into a backlog item with a content brief that `write` can execute without guessing. You never write articles. You never ask the owner questions mid-run.
+Input: `## Tracked keywords` in `/seo/strategy.md`. Output: `/seo/inventory.json` (every public page of the site), items appended to `/seo/backlog.md`, one compact SERP context file per keyword under `/seo/data/serp/<date>/`, a rank snapshot in `/seo/data/ranks/<date>.json`, one commit. You never write articles and never ask the owner anything mid-run; decide, log, move on.
 
-## 0. Preconditions
+Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js` scans the repo for public pages (no network, no cost). `${CLAUDE_PLUGIN_ROOT}/scripts/dfs.js` is a DataForSEO REST client that prints compact JSON (`check`, `serp`, `volume`, `difficulty`, `parse`). Credentials come from `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` in the environment. If the `dataforseo` MCP server is connected you may use its `api_request` tool with the same endpoint paths instead, but prefer the script: it strips a 200 KB SERP response to the twenty fields you need. Spend per keyword is ≈ $0.01–0.02; the summary reports the total.
 
-1. Read `/seo/strategy.md`. If missing, print `Run /seo-agent:init first` and stop.
-2. Read `/seo/backlog.md` (create empty if missing), `/seo/done.md`, `/seo/rejected.md`.
-3. Read the `## SEO agent` block in `CLAUDE.md` to learn the articles path and frontmatter.
-4. Verify DataForSEO: call `serp_locations` with a trivial query. If it fails, print the error and stop.
-5. Parse from `strategy.md`: `## Tracked keywords`, `## Never write about`, `## Clusters`, `## Caps`, word range.
+## 0. Preconditions — stop on the first failure, print why
 
-## 1. Select keywords to process
+1. `/seo/strategy.md` exists, else `Run /seo-agent:init first` (or hand-write it; the contract is below).
+2. `/seo/brand.json` exists (for `domain`), else `Run /seo-agent:brand first`.
+3. `node ${CLAUDE_PLUGIN_ROOT}/scripts/dfs.js check` prints `{"ok":true,…}`. Exit 2 = credentials missing; exit 1 = API refused. Print the message and stop; never fall back to web search for SERP data.
+4. Read `/seo/backlog.md` (create with a `# Backlog — <product>` heading if missing), `/seo/done.md`, `/seo/rejected.md` (treat missing as empty).
+5. Read the `## SEO agent` block in `CLAUDE.md`: articles path, how a title and URL slug are found. Blade views without frontmatter are fine; the block says where the title lives.
+6. **Inventory** — `node ${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js --root .` writes `/seo/inventory.json`: one row per public page (path, file, kind, title, description, h1, h2s, word_count, images_dir, last_commit) merged from the articles glob in `CLAUDE.md`, `Route::view` entries, and the sitemap (`public/sitemap.xml`, or pass `--sitemap <file|url>`). Read the file. Its stdout lists `added`/`removed` since the previous inventory and pages with no source file; keep those for the summary. Pages of kind `legal`, `home`, `pricing` and `page` are never refresh targets, but they are link targets.
 
-A keyword is **pending** if no backlog item (any status except `dropped`) and no `done.md` line references it. Process pending keywords in `strategy.md` order, up to `analysis_max_keywords` from `## Caps` (default 5 per run). Keywords matching the never-write list are skipped and reported.
+### `strategy.md` contract (what this skill reads)
 
-Idempotency: if `backlog.md` already has an item for a keyword, do not create another.
+```
+## Clusters
+- <cluster-name> (priority 1|2|3) — hub: </path or none> — <one line describing the spoke topics>
+## Never write about
+- <phrase or topic>; an item whose keyword or angle matches is dropped
+## Caps
+analysis_max_keywords: 5     analysis_budget_usd: 0.50     proposed_auto_accept_days: 7
+word_range: 1200–2200     location_code: 2840     language_code: en
+## Tracked keywords
+- <keyword> (cluster: <c>[, proposed <date>, vol <n>, kd <n>, write|refresh:/path[, striking]])   ← only the keyword is required
+```
+
+A keyword without a cluster tag is assigned the cluster whose name, hub or spoke line shares the most words with it; no overlap → `unclustered` (fit 4, reported).
+
+## 1. Select keywords
+
+A keyword is **pending** when no `backlog.md` item (any status except `dropped`) and no `done.md` line names it as `<type>: <keyword>` or in `target_keyword`. A keyword tagged `proposed <date>` is **waiting** until the owner removes the tag or `<date>` + `proposed_auto_accept_days` has passed; report waiting ones, never process them. Walk `## Tracked keywords` in order, skip non-pending and waiting ones, skip never-write matches (report them), stop after `analysis_max_keywords`. Nothing pending → print `backlog is current` (and `run /seo-agent:keywords` if nothing is waiting either) and stop without committing.
+
+**One page, one item.** Two keywords can resolve to the same existing page (the strategy line's `refresh:/path`, or the coverage check in §2). If a pending keyword's refresh target already has an open backlog item, or an earlier keyword in this run already targets it, do not create a second item: fold the keyword into that item as `also_targets: <keyword> (vol <n>, kd <n>)`, add its PAA questions to `must answer`, and add its volume to that item's `topic_vol` (rescore the new item; never rescore an existing one, just append the `also_targets` line and note it in the summary). Folded keywords count toward `analysis_max_keywords` and still spend their SERP call, because their questions improve the brief.
+
+Spend: note the run start `START=$(date -u +%FT%TZ)` (UTC, like the ledger); before each keyword, `dfs.js spend --since START`; if `total` ≥ `analysis_budget_usd`, stop taking new keywords and report the rest as `skipped: budget`.
 
 ## 2. Gather, per keyword
 
-Run these and keep the raw results in memory (you will save a snapshot in step 6):
+Run from the product repo root. `<date>` is today, `<slug>` the keyword lowercased and hyphenated.
 
-1. **SERP** — `serp_organic_live_advanced` with `keyword`, `location_code` from `strategy.md` (default 2840 US), `language_code: en`, `depth: 10`. Extract:
-   - top 10: url, domain, title, rank
-   - `people_also_ask` questions, verbatim
-   - presence of `featured_snippet`, `ai_overview`, `video`, `knowledge_graph`
-   - which of the top 10 are our own domain (from `brand.json` or `strategy.md`)
-2. **Volume** — `kw_data_google_ads_search_volume` for the keyword and its PAA questions; record monthly volume and competition.
-3. **Top pages** — for the top 5 non-forum, non-video URLs: `on_page_content_parsing` → headings (H1–H3), word count, publish/updated dates if present, tables present. If parsing fails for a URL, skip it and note it.
-4. **Our coverage** — grep the articles path for the keyword and its PAA questions in `title`, `target_keyword`, headings. Record any match as `existing: <path>`.
+1. **SERP** — `node $P/scripts/dfs.js serp --keyword "<kw>" --location <code> --language <lang> --domain <domain>` → `top` (rank, url, domain, title), `paa`, `features`, `big_brands_in_top10`, `ours`.
+2. **Overview** — one Labs call for the keyword *and* its PAA questions (punctuation stripped), pipe-separated: `dfs.js overview --keywords "kw|paa1|paa2"` → per row `volume`, `kd`, `intent` (informational | navigational | commercial | transactional), `cpc`. A keyword absent from the rows has no Labs data: fall back to `dfs.js volume` for it and treat KD as 50. Also read the latest `/seo/data/keywords/*.json`: if the keyword appears there, take its `variants` and `topic_volume`.
+3. **Top pages** — for the first 5 `top` entries that are not forums, video, or our own domain (`reddit.com`, `quora.com`, `youtube.com`, `community.zoom.com`): `dfs.js parse --url <url>` → `headings`, `word_count`, `tables`, `date_hints`, `years`, `format_hints`. A failed parse (`error` or `status_code` ≥ 400) is skipped and noted; retry once with `--js` only if the page returned fewer than 100 words. If it still returns under 100 words (support.zoom.com does this), fetch the URL with WebFetch, take the headings and an approximate word count from the returned text, and mark the source `(fetched)`; only if that fails too is it `(unparsed)`.
+4. **Our coverage** — match the keyword and each PAA question against `/seo/inventory.json`: a page **covers** a query when its title, h1 or path shares most of the query's content words (ignore stop words and "zoom"); a match only in the description or an h2 makes the page **related**, not covering, because descriptions name every sibling topic. Only `guide`, `article` and `tool` pages can cover. Also use `ours` from the SERP. Record the best covering page as `existing: </url-path>` (file from the inventory) and every other related page, tools included, as `related: [paths]` for the internal-links line. A query covered only by a `tool` page is not a write candidate: it becomes a `refresh` of that tool page's copy only if the tool page is of kind `tool` and the keyword is informational; otherwise skip it and report `covered by tool`.
 
-Do not read more than 5 competitor pages per keyword. Do not fetch anything except through the tools above.
+Save the four results merged into `/seo/data/serp/<date>/<slug>.json` (`{keyword, serp, volume, difficulty, pages: [...], existing}`); `write` reads it later as `serp_context`. Never parse more than 5 pages per keyword; never fetch anything except through `dfs.js`.
 
 ## 3. Decide, per keyword
 
-- **Intent**: one of `informational | how-to | comparison | tool | transactional`, plus one line on who is searching (role, situation).
-- **Type**: `refresh` if `existing` matches the keyword or a PAA question directly; otherwise `write`.
-- **Angle**: what none of the top 5 cover well, what is outdated (dates, plan limits, prices), where the product has a legitimate unique take. The angle must be something a reader would notice, not "more comprehensive".
-- **Must cover**: the 3–6 H2-level topics that appear in ≥3 of the top 5.
-- **Must answer**: the PAA questions, verbatim, max 6.
-- **Format**: majority format among top 5 (`guide | listicle | comparison | how-to`) and word range = median top-5 word count ±20%, clamped to the range in `strategy.md`.
-- **Images**: suggest 3–5 from the catalogue (`hero, illustration, stat, compare, steps, quote`) based on structure: numbers → `stat`, a table → `compare`, ordered steps → `steps`. AI `illustration` ≤ `images_per_article` (default 2).
-- **Internal links**: the cluster hub from `strategy.md` plus up to 3 existing articles found in step 2.4 or in the same cluster.
-- **Avoid**: generic definition intros, topics already covered by `existing` articles, anything on the never-write list, competitor brand names as headings.
+- **Intent**: start from the Labs `intent` of the keyword, then refine by SERP format: informational pages that are step lists → `how-to`; commercial with "vs"/"best"/"alternative" or comparison tables in the top 5 → `comparison`; calculators/converters in the top 5 → `tool`. Record as `<labs intent> → <brief intent>`, plus one line on who searches it (role, moment, what they already tried).
+- **Type**: `refresh` when `existing` is set and that page targets the keyword or a PAA question directly; else `write`. A refresh item's `target` is the existing URL path.
+- **Must cover**: the 3–6 H2-level topics that appear (by meaning, not exact words) in at least 3 of the parsed pages. Fewer than 3 pages parsed → use what you have and say so in `evidence`.
+- **Must answer**: the PAA questions verbatim, max 6, most relevant first.
+- **Angle**: what none of the top pages do well, what is stale (`date_hints`/`years` older than last year, plan limits or prices that changed), and where the product has a legitimate take — stated so a reader would notice the difference. "More comprehensive" is not an angle.
+- **Format**: the majority among parsed pages (`guide | how-to | listicle | comparison`); word range = median parsed `word_count` ± 20%, clamped to `word_range` from strategy.
+- **Images**: 3–5 frame types from `hero stat compare steps quote` chosen from the expected structure (a number → `stat`, a table → `compare`, ordered steps → `steps`, one takeaway → `quote`); `hero` always. Nothing else: the frame kit is the only image source.
+- **Internal links**: the cluster hub, plus up to 3 pages from `related` in step 2.4 or the same cluster, as URL paths. Prefer a tool page when the brief's must-cover includes a number the tool computes (storage, file size, audit).
+- **Avoid**: definition intros, topics the `existing`/sibling guides already own, never-write items, competitor brand names as headings.
+- **Sources**: the parsed URLs.
 
-## 4. Score 1–10
+## 4. Score
 
 ```
-potential = log-scaled volume (0 vol → 2, 100 → 5, 1000 → 8, 5000+ → 10)
-            −1 if ai_overview present, −1 if ≥3 of top 10 are DA-dominant brands (zoom.us, google.com, microsoft.com and similar)
-ease      = 10 − (count of top-5 pages > 2500 words) − (featured_snippet ? 1 : 0) + (type == refresh ? 2 : 0), clamp 1–10
-fit       = cluster priority 1 → 9, 2 → 7, 3 → 5; 0 if never-write list matches (item dropped, reported)
-score     = round(potential × ease × fit / 100, 1)
+topic_vol = keyword volume + Σ PAA volumes (overview rows) + Σ variant volumes (keywords pool), each keyword counted once
+potential: topic_vol <20 → 1 · <100 → 3 · <300 → 5 · <1000 → 7 · <5000 → 9 · else 10
+           −1 if ai_overview present · −1 if big_brands_in_top10 ≥ 3            (floor 1)
+ease:      KD ≤10 → 10 · ≤25 → 8 · ≤40 → 6 · ≤60 → 4 · else 2
+           −1 if featured snippet is held by a big brand · −1 if ≥3 parsed pages exceed 2500 words
+           +2 if type is refresh                                                  (clamp 1–10)
+fit:       cluster priority 1 → 9 · 2 → 7 · 3 → 5 · unclustered → 4 · never-write match → dropped
+score = round(potential × ease × fit / 100, 1)        (max 9.0)
 ```
 
-Record the three components in the item so the owner can argue with them.
+Write all three components into the item so the owner can argue with them.
 
 ## 5. Write the backlog
 
-Append items to `/seo/backlog.md` in score order among new items; never reorder or edit existing items except to leave them in place. Item format:
+Append new items to `/seo/backlog.md`, highest score first among the new ones. Never reorder, edit or delete existing items. IDs continue from the highest `B-nnn` across `backlog.md` and `done.md`.
 
 ```
-### [B-<next id>] <type>: <keyword>
+### [B-<id>] <write|refresh>: <keyword>
 - type: write | refresh
 - cluster: <name>
-- target: <existing path, refresh only>
+- target: </existing/path>            ← refresh only
+- also_targets: <keyword> (vol <n>, kd <n>)   ← only when a second keyword folded into this item (§1)
 - score: <n> (potential <p> × ease <e> × fit <f>)
-- evidence: vol <n>/mo, top5 median <words> words, features: <list>, ours: <rank or none>
+- evidence: vol <n>/mo (topic <n>: kw + <n> PAA + <n> variants), KD <n>, intent <labs>, top5 median <n> words, features: <list>, ours: <rank or none>, pages parsed <n>/5
 - status: open
 - brief:
   intent: <type>, <who>
-  must cover: <topics>
-  must answer: <PAA verbatim>
+  must cover: <topic; topic; topic>
+  must answer: <PAA verbatim> | <PAA verbatim>
   angle: <one or two sentences>
   format: <format>, <min>–<max> words
-  images: <types>
-  internal links: <paths>
+  images: <hero, stat, …>
+  internal links: </hub>, </sibling>
   avoid: <list>
-  sources: <top-5 URLs>
+  sources: <url>, <url>
+  serp_context: seo/data/serp/<date>/<slug>.json
 ```
 
-IDs: find the highest `B-nnn` in `backlog.md` and `done.md`, continue from there.
+## 6. Snapshot and commit
 
-## 6. Save snapshot and commit
+1. `/seo/data/ranks/<date>.json`: `{ date, location_code, keywords: { "<kw>": { ours: <rank|null>, our_url, volume, kd, top10: [{rank, domain, url}], features: {...} } } }`. Overwrite on the same date.
+2. `git add seo/backlog.md seo/inventory.json seo/data/` (includes `seo/data/spend.jsonl`) and commit on the current branch: `seo: analysis <date> — <n> items, <m> skipped`. No branch, no PR: planning files commit directly.
+3. A cluster hub that is `none` or missing is not invented; the item links to siblings only and the summary says which cluster needs a hub.
 
-1. Write `/seo/data/ranks/<YYYY-MM-DD>.json`: per keyword → our rank, top 10 (url, domain), features, volume. Overwrite if same date.
-2. `git add seo/backlog.md seo/data/ranks/` and commit on the current branch: `seo: analysis <date> — <n> items added, <m> skipped`. Do not open a PR; planning files commit directly.
-3. If `strategy.md` is missing a cluster hub that the new items need, do not invent one; note it in the summary.
+## 7. Summary (≤ 12 lines, printed last)
 
-## 7. Summary (print, ≤12 lines)
-
-- keywords processed / skipped (with reason)
-- new items by type with score
-- top 3 items in one line each
-- anything missing: failed tool calls, unparsable pages, unknown hub
-- call `scripts/dashboard.js --product <name> --event analysis` with the same summary as JSON, if the script exists; otherwise skip silently
+- keywords processed / waiting (proposed, with the date they auto-accept) / skipped, each skip with its reason (already in backlog, never-write, budget, API error)
+- new items: `B-id score type keyword` one per line, top first
+- inventory: page count, pages added/removed since last run, pages without a source file
+- misses: failed parses, keywords with no volume data, unclustered keywords, clusters without a hub
+- DataForSEO spend this run from `dfs.js spend --since START`, against `analysis_budget_usd`
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/dashboard.js --product <name> --event analysis` with that summary as JSON if the script exists; otherwise skip silently
 
 ## Hard rules
 
-- No article writing, no file edits outside `/seo/`
-- Never more than 5 competitor pages per keyword, never more than `analysis_max_keywords` keywords per run
-- Never create a second item for a keyword that already has one
-- Never score an item on the never-write list; drop and report
-- If DataForSEO returns an error mid-run, finish the keywords already gathered, report the rest as skipped
+- No article writing; no edits outside `/seo/`
+- SERP, volume and difficulty data only from DataForSEO through `dfs.js` (or the MCP `api_request` tool); WebFetch is allowed only as the fallback for a competitor page the parser returned empty. If DataForSEO fails mid-run, finish the keywords already gathered and report the rest as skipped
+- Never process a `proposed` keyword before its gate opens; never exceed `analysis_budget_usd`
+- ≤ 5 parsed pages per keyword, ≤ `analysis_max_keywords` keywords per run
+- Never a second item for a keyword that already has one; never score a never-write item
+- Every brief carries a `serp_context` path; `write` refuses items without one
+- A refresh target whose `last_commit` in the inventory is a non-agent commit within 14 days is still briefed, but the item is marked `status: open (human-edited <date>)` so `refresh` waits

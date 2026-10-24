@@ -53,6 +53,7 @@ skills/
   init/SKILL.md
   brand/SKILL.md
   frames/SKILL.md
+  keywords/SKILL.md
   analysis/SKILL.md
   refresh/SKILL.md
   write/SKILL.md
@@ -62,6 +63,8 @@ skills/
   audit/SKILL.md
 scripts/
   gsc.js                   Search Console → JSON
+  dfs.js                   DataForSEO REST client: serp, overview, suggestions, ideas, related, ranked, competitors, serp-competitors, parse, spend
+  inventory.js             repo → seo/inventory.json (every public page); --detect for init
   render.js                HTML → PNG/WebP (frame kit renders)
   validate-article.js      frontmatter, links, word count, image refs
   dashboard.js             write rows to the dashboard artifact DB
@@ -69,7 +72,8 @@ templates/
   frames/                  base frame templates, parameterised by brand.json
     _base.css, hero.html, stat.html, compare.html, steps.html, quote.html
   contact-sheet.html       renders all frames with dummy content for review
-  article.md               article skeleton with required frontmatter
+  article.md               Markdown article skeleton (templated products clone an existing article)
+  pr-body.md               PR body (§8)
 config.md                  dashboard URL, default caps, default rubric
 SETUP.md                   owner-facing onboarding steps
 SPEC.md                    this file
@@ -177,7 +181,7 @@ Three rejections with the same theme → `feedback` proposes a line in `voice.md
 |---|---|---|---|
 | `gsc.js` | `--site`, `--from`, `--to`, `--dims query,page` | JSON rows: clicks, impressions, ctr, position | Service-account JSON from `GSC_SA_JSON` env. Data lags ~3 days; always query `today-3` back. |
 | `render.js` | `--frame <name>`, `--data data.json`, `--out file.png`, `--scale 2` | PNG (and WebP) | Fills a frame template from `/seo/frames/` with data + `brand.json`, renders with headless Chromium. Local files only, no site access. |
-| `validate-article.js` | `--file` | exit 0/1 + report | Frontmatter schema, internal links resolve, images exist, word count within range from `strategy.md`. |
+| `validate-article.js` | `--file [--words-warn]` | exit 0/1 + JSON report | Blade or Markdown. Title/description present and within length, slug routed and canonical matches, internal links/anchors/route() names resolve, images and assets exist with alt text, exactly one h1 and ≥3 h2, word count within `word_range`, banned words from `voice.md` (contextual ones warn), placeholders; sitemap, JSON-LD, OG image and hub link are warnings. |
 | `dashboard.js` | `--product`, `--event`, JSON payload | — | Writes a row to the dashboard artifact DB. |
 
 All scripts print JSON to stdout so skills parse them with Bash.
@@ -194,15 +198,15 @@ Every skill:
 - never touches an article a human edited in the last 14 days (`git log` check)
 
 ### `init` — bootstrap a product
-Trigger: owner, once per product (re-runnable: diffs and reports, never overwrites owner-edited files).
-1. Detect article storage: routes, markdown folders, existing posts → write the `## SEO agent` block into `CLAUDE.md`
-2. Read all articles + live site → draft `strategy.md` (clusters, ICP, competitors found in content) and `voice.md` (from existing writing)
-3. Run `brand` → `brand.json` + design-system block; then `frames` → `/seo/frames/`, contact sheet
-4. Create empty `backlog.md`, `done.md`, `rejected.md`, `review-rubric.md`, `data/`
-5. Create `seo` label (`gh label create`)
-6. Check access: GSC property reachable with service account? DataForSEO MCP responds? → report what's missing
-7. Register product on dashboard
-8. Open one PR containing everything; PR body lists the owner's remaining manual steps
+Trigger: owner, once per product (re-runnable: fills gaps and reports differences, never overwrites owner-edited files).
+1. Detect article storage with `inventory.js --detect` (Laravel `Route::view` groups, markdown/MDX folders; title and slug sources, images dir, sitemap, preview base) → write the `## SEO agent` block into `CLAUDE.md`
+2. Inventory, then read all articles → draft `strategy.md` (ICP, positioning, clusters with hubs, never-write, seed keywords) and `voice.md` (tone/structure/formatting rules each quoting an existing page, verbatim good paragraphs, rewritten bad ones, banned words, where product claims live), plus `review-rubric.md`; all from `templates/`
+3. Run `brand` → `brand.json` + design-system block; then `frames --no-design` → `/seo/frames/`, contact sheet (the canvas loop stays with the owner)
+4. Create empty `backlog.md`, `done.md`, `rejected.md`, `data/`
+5. Create `seo` label (`gh label create`) when `gh` exists, else a manual step
+6. Check access: DataForSEO via `dfs.js check`; GSC reported as not wired until `gsc.js` exists → report what's missing
+7. Dashboard registration: deferred until the dashboard exists
+8. Commit everything on the current branch (`seo: init <date>`), like `brand` and `frames`; the commit body and the summary list the owner's remaining manual steps. (The original PR-per-init design was dropped: setup files commit directly, and `gh` may not exist yet on a fresh machine.)
 
 ### `brand` — extract branding from the repo
 Trigger: called by `init`; owner re-runs after a brand change. Reads the repo only; no rendering, no images.
@@ -217,8 +221,11 @@ Trigger: called by `init` after `brand`; owner re-runs to refresh, or with `--fr
 3. State-driven re-runs: draft canvas → owner edits → convert artboards into tokenised frames → contact sheet
 4. Render `contact-sheet.png`; check fonts, contrast, logo, slots; attach to PR
 
+### `keywords` — monthly or on demand
+Keeps `## Tracked keywords` stocked without the owner hand-picking seeds. Per cluster: DataForSEO Labs `keyword_suggestions` and `keyword_ideas` from the hub title and cluster words; once per run `ranked_keywords` for our domain (positions 4–30 = striking distance, no GSC needed) and for up to five competitors discovered with `competitors_domain` (or `serp_competitors` over the tracked keywords when the domain is too new for the intersection index) (gap). Filters volume ≥ 20, KD ≤ 60, intent, never-write, already tracked. Groups near-duplicate phrasings into one topic (`topic_volume` = sum), checks coverage against `seo/inventory.json` → `write` or `refresh:/path`, ranks `topic_volume × (1 − kd/100) × cluster weight`, keeps `discovery_per_cluster`. Appends to `## Tracked keywords` as `- kw (cluster: c, proposed <date>, vol n, kd n, write|refresh:/path[, striking])` and to `## Competitors` as `(proposed <date>)`; commits directly (owner prunes). `analysis` processes a proposed keyword once the tag is removed or `proposed_auto_accept_days` (7) have passed. Spend-capped by `discovery_budget_usd` (1.00) via the ledger `seo/data/spend.jsonl` that `dfs.js` writes on every call.
+
 ### `analysis` — Monday
-Two modes. **Seeded mode** is v1 and always runs; **discovery mode** is added once GSC is wired.
+Two modes. **Seeded mode** is v1 and always runs; **discovery mode** is added once GSC is wired. Before anything, `analysis` runs `scripts/inventory.js`, which writes `seo/inventory.json` (every public page with title, headings, word count, last commit) from the articles glob, routes and sitemap; coverage, internal links and the human-edit guard read it.
 
 **Seeded mode** — keywords → content briefs. For each tracked keyword in `strategy.md` without a backlog item:
 1. DataForSEO SERP: top 10 URLs, PAA questions, featured snippet type, AI overview presence, volume, difficulty
@@ -249,42 +256,47 @@ Finds:
 - **gaps**: tracked/competitor keywords with no page of ours in top 50 → write
 - **links**: pages that should link to each other and don't → link
 - **technical**: from last crawl → fix
-Scores each 1–10: potential × ease × fit (fit from `strategy.md`; never-write list = fit 0, item dropped).
+Scores each 1–10: potential × ease × fit (fit from `strategy.md`; never-write list = fit 0, item dropped). Seeded-mode scoring v2 (2026-10-23): potential comes from **topic volume** (keyword + its PAA questions + grouped variants from the keywords pool, via Labs `keyword_overview`), not one Google Ads row, which was 10/mo for every long-tail seed; intent comes from Labs `search_intent_info` refined by SERP format. Spend-capped by `analysis_budget_usd` (0.50).
 Writes: `backlog.md` (rewritten, existing claimed/in-review items preserved), `data/gsc/<date>.json`, `data/ranks/<date>.json`. Commits to main directly (planning files only).
 Posts: 10-line summary.
 Caps: respects weekly caps in `strategy.md` when ordering; may propose tracked-keyword additions as a separate PR.
 
 ### `refresh` — Tue–Thu
-1. Exit if open SEO PRs ≥ `open_prs_max`
-2. Take top `open` backlog item of type `refresh`; mark `claimed`
-3. Branch `seo/<id>-<slug>`
-4. Pull `serp_context` for the target keyword; read the article; read `voice.md`
-5. Edit: add/expand sections the SERP rewards, update dates/figures, FAQ, internal links, meta; regenerate OG via `images` if title changed
-6. `validate-article.js`
-7. PR with template body (§8); label `seo`; mark backlog `in-review:<pr#>`
+Same shell as `write` (caps, clean tree, PR or `--no-pr` mode, claim, branch, plan, validate, PR, in-review) for type `refresh`, with the rules that make it surgery rather than a rewrite:
+1. Caps: `open_prs_max`, `refresh_per_week` via `claimed:` dates and `done.md`
+2. Top open `refresh` item; **human-edited guard**: a commit on the article or its image folder inside the guard window whose subject does not start with `seo:` is the owner's → skip the item, try the next (max 3)
+3. Read the article, its history and inbound links (anchor text, `#id`s other pages use), the brief, `serp_context`, `also_targets`, siblings' h2s, `voice.md`, rubric, product-claim sources
+4. Plan to `seo/data/drafts/<id>.plan.md` as four lists — keep (default), add (must-cover gaps, must-answer gaps), change (meta, H1 only if the angle says so, dated facts), images (frames for *new* structure only; hero re-rendered only when the H1 changed) — plus a word budget
+5. Edit inside the existing markup: all `id`s, links, images, config-rendered facts and the CTA survive; added prose reads as the same author. **Rewrite guard**: deletions over half the file → revert, `blocked:needs-rewrite-decision`, no PR
+6. Validate (inherited failures are fixed and named); commit only the article, new images and the plan; PR body is diff-shaped (sections added/extended, words before → after, kept n/n)
 
 ### `write` — Tue–Thu
 Same shell as `refresh`, for type `write`:
-- outline from cluster context in `strategy.md` + sibling articles (hub-and-spoke)
-- draft per `voice.md` and `templates/article.md`
-- image plan from the brief: one entry per image with `type` (§15 catalogue), `section`, `data`, `alt`; hero always; 3–5 total; then `images`
-- internal links to hub + siblings; meta + schema
-- word count within range; no claim about the product that can't be verified against the live UI/docs
+1. Caps (`open_prs_max` via `gh pr list`, `new_per_week` via claimed dates), clean tree, `gh auth status` → PR mode or `--no-pr` mode (branch pushed, PR body saved to `seo/data/pr/<id>.md`, compare URL printed)
+2. Top open `write` item; claim it on the default branch (`status: claimed:<date>`, direct commit); branch `seo/<id>-<slug>`; branch already exists → no-op
+3. Read brief + `serp_context`, cluster line, hub and siblings from `inventory.json`, `voice.md`, `review-rubric.md`, the `Product claims` sources, and the two nearest existing articles as the **skeleton** (templated products clone their markup; Markdown products use `templates/article.md`)
+4. Plan to `seo/data/drafts/<id>.plan.md`: H1/title/description, outline mapping must-cover → H2 and must-answer → section or FAQ, image plan (3–5, §15 rules), claims list with sources, avoid list
+5. Draft; register the route and the sitemap entry the way the repo does; images via `images`; `validate-article.js` must pass (≤ 3 fix passes, else `status: blocked:<reason>` and no PR)
+6. Commit only the article, route, sitemap, images and plan; push; PR from `templates/pr-body.md` (§8) with images inline; backlog `in-review:#<pr>` on the default branch
 
 ### `images` — called by `refresh`/`write`
 Input: the image plan (list of `{id, type, data…, alt}`), types `hero stat compare steps quote` only.
 For each entry: `render.js --frame <type>` with the entry as data. Read each PNG; check legibility, clipping, logo, font; shorten text and re-render once on failure, else drop the image. Output to the article's image folder. No AI, no browser — every image is a frame filled with the article's own content.
 
 ### `review` — after `refresh`/`write`, fresh session
-1. Find open SEO PRs with no `ready`/`needs-work` label
-2. Check out branch; read article, PR body, `review-rubric.md` + default rubric, `rejected.md`
-3. Checks: target keyword/intent match; voice compliance; never-write list; word range; every product claim verified against the repo's docs/feature list; every image came from `/seo/frames/` and its numbers/steps/quotes appear in the article text, alt text matches content; links resolve; frontmatter valid; nothing lifted from a competitor page; would any past rejection reason apply?
-4. Fail → PR comment with specific fixes, label `needs-work`; the next execution run revises. Max 2 rounds, then label `escalate`.
-5. Pass → label `ready`, first comment = 5-line verdict. If PR type ∈ `strategy.md` auto-merge list → `gh pr merge --squash --auto`.
+0. Needs `gh`. Ensures labels `ready` / `needs-work` / `escalate`. **Sweep**: backlog items `in-review:#n` whose PR merged → `done.md` line + `status: done:<date>`; closed unmerged → `rejected.md` line with the owner's last comment as the reason + `status: rejected:#n`; commit on the default branch.
+1. Open SEO PRs with no verdict label (`--pr n` re-reviews one). A PR with no backlog item behind it is labelled `escalate`, not judged.
+2. Worktree checkout (owner's checkout untouched); read diff, article (and base version for refresh), plan, brief, `serp_context`, `voice.md`, `review-rubric.md`, `rejected.md`, product-claim sources, every added PNG; run inventory + validator.
+3. Checks, each finding `file:line — problem — fix`, blocking or note: validator; files outside the allowed set; refresh invariants (ids, links, ≤ half deleted, config values still rendered); write invariants (route, sitemap, hub link in 300 words); research talk in prose; frame text ⊂ article text and alt matches; FAQ body = JSON-LD; PR-body honesty vs validator stats; nothing lifted from `serp_context` pages; keyword answered on the first screen; must-cover/must-answer complete; angle visible; avoid and never-write; word range without padding; every `voice.md` rule; every claim traced to `Product claims` or brief sources; every rubric check and automatic fail; past `rejected.md` reasons.
+4. Pass → 5-line comment `<!-- seo-review round n: ready -->`, label `ready`; auto-merge (`gh pr merge --squash --auto`) only if type ∈ `## Auto-merge`, round 1, no pricing/compliance lines in the diff, `strategy.md` unchanged for 7 days. Fail → numbered findings, label `needs-work`; a second failed round → `escalate`, no third.
+5. Backlog item gets `- review: round n <verdict> <date>`; worktrees removed; ≤ 12-line summary.
+
+### `revise` — run by `write`/`refresh` first, or `/seo-agent:revise --pr n`
+Applies the latest `<!-- seo-review round k: needs-work -->` comment to its PR and nothing else: each blocking finding's rule is confirmed, then the reviewer's fix is applied as written (or recorded `not applied` with the rule quoted when the finding is wrong or the fix would break another rule); one-line rule-backed notes are applied, owner-addressed notes skipped; a frame whose text changed is re-rendered under the same name; validator must pass (a fix that breaks it is reverted); commit `seo: revise <id> round k`, push, PR body corrected, reply `<!-- seo-revise round k -->`, `needs-work` removed so `review` runs round k+1. Worktree checkout; owner commits on the branch since the review → hands off. `write`/`refresh` run it before new work and stop after a revision (one unit of work per run).
 
 ### `feedback` — 1st of month
 - For each `done.md` item merged ≥4 weeks ago with no outcome: pull GSC for that page, record position/clicks delta
-- `gh pr list --state closed --label seo` → close reasons into `rejected.md`
+- (`review` already sweeps merged/closed PRs into `done.md`/`rejected.md`; `feedback` only adds outcomes)
 - Recurring themes (≥3) → propose `voice.md` / `review-rubric.md` lines via PR
 - Dashboard: outcomes + rejection tally
 
@@ -389,7 +401,7 @@ Owner-only setup steps per product (cannot be automated):
 14. Dashboard artifact + `dashboard.js`
 15. Marketplace registration; onboard product two
 
-Current chosen order for the first slice: `brand` → `frames` → `images` (tested by hand with a plan file) → `analysis` (seeded mode) → `write`. `init` and GSC-driven analysis come after; inputs are hand-written until then.
+Current chosen order for the first slice: `brand` → `frames` → `images` (tested by hand with a plan file) → `analysis` (seeded mode) → `keywords` → `init` (fills `voice.md`, rubric and bookkeeping files, which `write` needs) → `validate-article.js` → `write` → `refresh` → `review`. GSC-driven analysis comes after.
 
 No writing skill is built until step 5 produces a backlog the owner agrees with.
 

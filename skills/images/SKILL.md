@@ -25,7 +25,7 @@ Standalone test: `/seo-agent:images --plan ${CLAUDE_PLUGIN_ROOT}/test/plan-templ
 
 ## 0. Preconditions
 - `/seo/brand.json` exists, else `Run /seo-agent:brand first`; `/seo/frames/` exists, else `Run /seo-agent:frames first`; stop on either.
-- Plan has exactly one `hero`. Each entry's `type` is one of `hero stat compare steps quote`; unknown types are skipped and reported.
+- Plan has exactly one `hero`. A hero may carry `"subject": "<path to a product screenshot>"`; without it the kit's subject slot is hidden (never leave a frame with an empty placeholder box). Each entry's `type` is one of `hero stat compare steps quote`; unknown types are skipped and reported.
 - `stat`/`compare` values, `steps` text and `quote` text must appear in the article (when called by `write`/`refresh`); never invent numbers.
 
 ## 1. Render

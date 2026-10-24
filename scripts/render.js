@@ -54,6 +54,8 @@ function buildHtml(frame, data, brand, framesDir) {
     'product': esc(brand.product || ''),
     'font_link': fontLink(brand),
     'logo_html': logoHtml(brand, framesDir),
+    'subject_img': subjectHtml(data),
+    'subject_class': subjectHtml(data) ? '' : 'no-subject',
     'eyebrow': esc(data.eyebrow || ''),
     'title': esc(data.title || ''),
     'description': esc(data.description || ''),
@@ -90,6 +92,13 @@ function fontLink(brand) {
   if (f.source === 'local') return '';
   const fams = [...new Set([f.heading || 'Inter', f.body || 'Inter'])].map(x => `family=${encodeURIComponent(x)}:wght@400;600;700;800`).join('&');
   return `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fams}&display=swap">`;
+}
+// hero only: an optional product screenshot or illustration in the subject slot.
+// data.subject = path to a png/jpg/svg/webp; absent or missing file → the frame gets class no-subject and the slot is hidden.
+function subjectHtml(data) {
+  const p = data.subject;
+  if (p && fs.existsSync(p)) return `<img src="${fileUrl(p)}" alt="">`;
+  return '';
 }
 function logoHtml(brand, framesDir) {
   const cands = [brand.logo, ...['logo.svg', 'logo.png'].map(x => path.join(framesDir, x))].filter(Boolean);
