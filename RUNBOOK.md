@@ -26,7 +26,14 @@
    node ~/Code/seo-agent/scripts/dfs.js check   # prints the account balance
    ```
    Only `keywords` and `analysis` use them. The other skills make no API calls.
-6. Optional: `alias seo='claude --plugin-dir ~/Code/seo-agent'` so a session is `cd ~/Code/<product> && seo`.
+6. **Google Search Console** (for `feedback` and, later, discovery-mode `analysis`):
+   - Google Cloud console → APIs & Services → Enable APIs → enable **Google Search Console API** for the project.
+   - IAM → Service accounts → create one (no roles needed), add a JSON key, download it to a path outside any repo.
+   - Search Console → the property → Settings → Users and permissions → add the account's `client_email` with Restricted permission.
+   - In your shell profile: `export GSC_SA_FILE=/path/to/key.json` (and `export GSC_SITE=sc-domain:<domain>` if the property is not `sc-domain:` or `https://` of the domain in `seo/brand.json`).
+   - `node ~/Code/seo-agent/scripts/gsc.js check` must print `ok: true` with the property and permission. Data lags 3 days; every window ends at today − 3.
+   - `gsc.js` honours `https_proxy` / `HTTPS_PROXY` (HTTP CONNECT proxies only; a `socks://` value is ignored), since Node's own `fetch` does not.
+7. Optional: `alias seo='claude --plugin-dir ~/Code/seo-agent'` so a session is `cd ~/Code/<product> && seo`.
 
 The plugin is loaded per session with `--plugin-dir`; nothing is installed into Claude Code globally. To update it: `cd ~/Code/seo-agent && git pull && npm install && claude plugin validate .`.
 
@@ -58,7 +65,7 @@ git status            # must be clean, on main
 claude --plugin-dir ../seo-agent
 ```
 
-Credentials: `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` exported in the shell for `keywords` and `analysis`; `gh auth status` green for `write`, `refresh`, `review`, `revise`. Nothing else needs network.
+Credentials: `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` exported in the shell for `keywords` and `analysis`; `GSC_SA_FILE` for `feedback`; `gh auth status` green for `write`, `refresh`, `review`, `revise`, `feedback`. Nothing else needs network.
 
 Each skill does one unit of work and stops. Run one skill per session; `review` in a session that did not write the PR.
 
@@ -83,7 +90,7 @@ A `needs-work` PR costs one extra execute run: the next `write`/`refresh` revise
 |---|---|---|
 | 1st | `/seo-agent:keywords` | Discovers and ranks candidates per cluster, appends them to `## Tracked keywords` tagged `proposed <date>`. Spend ≤ $1.00. Also run it any week `analysis` says the backlog is current and fewer than 3 items are open. |
 | within 7 days | edit `seo/strategy.md` | Delete the proposals you do not want. Anything still tagged after 7 days is accepted automatically; remove the tag to accept early. Commit the edit. |
-| 1st | `/seo-agent:feedback` | Not built yet. Needs Google Search Console (`gsc.js`). Records position/click deltas for pages merged ≥ 4 weeks ago. |
+| 1st | `/seo-agent:feedback` | Needs the Search Console setup above. Saves a 28-day snapshot, appends a 4-week outcome (and a 12-week one later) to every merged item in `done.md`, reports tracked-keyword positions, and opens one PR when three rejections or review findings share a theme. Merge or close that PR like any other. |
 
 ## Quarterly
 

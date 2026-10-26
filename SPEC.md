@@ -179,7 +179,7 @@ Three rejections with the same theme → `feedback` proposes a line in `voice.md
 
 | Script | Input | Output | Notes |
 |---|---|---|---|
-| `gsc.js` | `--site`, `--from`, `--to`, `--dims query,page` | JSON rows: clicks, impressions, ctr, position | Service-account JSON from `GSC_SA_JSON` env. Data lags ~3 days; always query `today-3` back. |
+| `gsc.js` | `check`, `sites`, `query --from --to [--dims] [--page]`, `page --path [--days] [--baseline-end]`, `site [--save dir]`, `striking`, `decaying`, `extract` | compact JSON; `site` → `seo/data/gsc/<date>.json` (pages now vs prior with `decaying`, `striking` queries 8–20 above an adaptive `min_impressions` floor (site imps ÷ 50, clamped 10–100), `top_queries`) | No deps: RS256 JWT with `crypto`, `https` with an `https_proxy` CONNECT tunnel (Node `fetch` ignores proxies). Live-verified 2026-10-26 against sc-domain:recordmover.com. Service account from `GSC_SA_JSON` or `GSC_SA_FILE`; property from `--site` / `GSC_SITE` / `seo/brand.json` domain. Data lags 3 days; default end = today − 3. |
 | `render.js` | `--frame <name>`, `--data data.json`, `--out file.png`, `--scale 2` | PNG (and WebP) | Fills a frame template from `/seo/frames/` with data + `brand.json`, renders with headless Chromium. Local files only, no site access. |
 | `validate-article.js` | `--file [--words-warn]` | exit 0/1 + JSON report | Blade or Markdown. Title/description present and within length, slug routed and canonical matches, internal links/anchors/route() names resolve, images and assets exist with alt text, exactly one h1 and ≥3 h2, word count within `word_range`, banned words from `voice.md` (contextual ones warn), placeholders; sitemap, JSON-LD, OG image and hub link are warnings. |
 | `dashboard.js` | `--product`, `--event`, JSON payload | — | Writes a row to the dashboard artifact DB. |
@@ -295,10 +295,12 @@ For each entry: `render.js --frame <type>` with the entry as data. Read each PNG
 Applies the latest `<!-- seo-review round k: needs-work -->` comment to its PR and nothing else: each blocking finding's rule is confirmed, then the reviewer's fix is applied as written (or recorded `not applied` with the rule quoted when the finding is wrong or the fix would break another rule); one-line rule-backed notes are applied, owner-addressed notes skipped; a frame whose text changed is re-rendered under the same name; validator must pass (a fix that breaks it is reverted); commit `seo: revise <id> round k`, push, PR body corrected, reply `<!-- seo-revise round k -->`, `needs-work` removed so `review` runs round k+1. Worktree checkout; owner commits on the branch since the review → hands off. `write`/`refresh` run it before new work and stop after a revision (one unit of work per run).
 
 ### `feedback` — 1st of month
-- For each `done.md` item merged ≥4 weeks ago with no outcome: pull GSC for that page, record position/clicks delta
-- (`review` already sweeps merged/closed PRs into `done.md`/`rejected.md`; `feedback` only adds outcomes)
-- Recurring themes (≥3) → propose `voice.md` / `review-rubric.md` lines via PR
-- Dashboard: outcomes + rejection tally
+Needs `gsc.js check` ok; otherwise prints the owner's setup steps and stops.
+1. `gsc.js site --save seo/data/gsc` → the 28-day snapshot (totals, per-page deltas, decaying, striking, top queries) that discovery-mode `analysis` reads; tracked-keyword positions now vs the snapshot from ~4 weeks ago
+2. Outcomes: every `done.md` line merged ≥ 28 (+3 lag) days ago without `| outcome` → `gsc.js page --baseline-end <merge − 1>`; `write` items get absolute numbers (`new page — pos b, m clicks, n imps`), `refresh` items the delta (`pos a→b, clicks +x% (n→m), imps n→m`); a second segment `| 12w` at ≥ 84 days. Append-only.
+3. Themes from `rejected.md` reasons and the blocking findings of `needs-work` review comments (90 days): ≥ 3 occurrences → one proposed line for `voice.md` or `review-rubric.md` (quoting the occurrences), in one PR `seo/feedback-<date>` labelled `seo`; a rule already cited 3× by agent output → a good/bad paragraph pair instead of a duplicate rule; 1–2 → watch list
+4. Commit `done.md` + snapshot on the default branch, push; ≤ 14-line summary (totals, outcomes, tracked table, decaying/striking counts, themes)
+Never touches `backlog.md`, `strategy.md`, articles or open PRs; rules change only through the PR.
 
 ### `audit` — quarterly or on demand
 Crawl site → `data/crawl/<date>.json`: broken links, missing/duplicate meta, orphan pages, thin pages, redirect chains, sitemap gaps, CWV from PageSpeed if reachable. Trivial fixes → one PR. Rest → `backlog.md` as `fix` items.
@@ -386,7 +388,7 @@ Owner-only setup steps per product (cannot be automated):
 ## 13. Build order
 
 1. Scaffold plugin; `claude plugin validate`
-2. `gsc.js` — verify against RecordMover GSC by hand
+2. `gsc.js` — built 2026-10-25 (aggregators fixture-tested, JWT verified offline); live check passed 2026-10-26 against sc-domain:recordmover.com (28d: 23 clicks, 1148 imps, 15 pages, 4 decaying, 0 striking); proxy support added the same day
 3. DataForSEO MCP wired; one SERP call works
 4. `init` — run on RecordMover; review the PR it opens
 5. `analysis` — run 3×; tune scoring until the backlog is one the owner would choose

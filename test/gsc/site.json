@@ -1,0 +1,10 @@
+{"site":"sc-domain:recordmover.com","window":{"from":"2026-09-24","to":"2026-10-21","days":28},
+ "current":[{"keys":["https://recordmover.com/zoom-recording-storage-limits"],"clicks":40,"impressions":1500,"ctr":0.0267,"position":9.2},
+            {"keys":["https://recordmover.com/zoom-to-dropbox"],"clicks":2,"impressions":120,"ctr":0.017,"position":18.0}],
+ "prior":[{"keys":["https://recordmover.com/zoom-recording-storage-limits"],"clicks":29,"impressions":1100,"ctr":0.0264,"position":11.4},
+          {"keys":["https://recordmover.com/zoom-to-dropbox"],"clicks":9,"impressions":400,"ctr":0.022,"position":14.0},
+          {"keys":["https://recordmover.com/old-page/"],"clicks":1,"impressions":150,"ctr":0.007,"position":30.0}],
+ "queries":[{"keys":["zoom cloud storage limit","https://recordmover.com/zoom-recording-storage-limits"],"clicks":30,"impressions":900,"ctr":0.033,"position":7.1},
+            {"keys":["zoom recording storage","https://recordmover.com/zoom-recording-storage-limits"],"clicks":10,"impressions":600,"ctr":0.017,"position":12.3},
+            {"keys":["zoom to dropbox","https://recordmover.com/zoom-to-dropbox"],"clicks":2,"impressions":120,"ctr":0.017,"position":18.0},
+            {"keys":["tiny query","https://recordmover.com/zoom-to-dropbox"],"clicks":0,"impressions":5,"ctr":0,"position":9.0}]}

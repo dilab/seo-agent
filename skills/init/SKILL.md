@@ -70,7 +70,7 @@ Create if missing, never touch if present: `/seo/backlog.md` (`# Backlog\n`), `/
 - `gh` present and `gh auth status` ok → `gh label create seo --description "SEO agent PRs" --color 0E8A16 --force`.
   `gh` absent: with `--install-tools` and `brew` on PATH, run `brew install gh` (or `apt-get install -y gh` when `apt-get` exists and you are root); without the flag, or on any other system, leave it manual. Either way the login is always a manual step, because `gh auth login` needs a browser: print `gh auth login` and `gh label create seo …` as the owner's next commands. Never attempt the login yourself.
 - `node $P/scripts/dfs.js check` → ok, or manual step `export DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD`.
-- GSC: `gsc.js` is not built yet; record `GSC: not wired (discovery mode later)`.
+- `node $P/scripts/gsc.js check` → `GSC: ok (<site>, <permission>)`, or the manual steps from its error: enable the Search Console API in the Cloud project, create a service account, add its `client_email` to the Search Console property (Settings → Users and permissions), `export GSC_SA_FILE=<path>` (and `GSC_SITE=sc-domain:<domain>` if the property is not derivable from `seo/brand.json`). `feedback` and discovery-mode `analysis` need it; nothing else does.
 - No `git_remote` → manual step `add a GitHub remote before write/refresh (PRs)`.
 - Dashboard registration: not built; skip silently.
 
@@ -91,5 +91,5 @@ Print (≤ 15 lines):
 
 - Never overwrite or reorder content in an existing `strategy.md`, `voice.md`, `review-rubric.md`, `brand.json`, frames or the `## SEO agent` block; add missing lines only
 - Every voice rule and good paragraph is traceable to an existing page; no invented examples presented as the site's own
-- No network calls except `dfs.js check` and `gh label create`
+- No network calls except `dfs.js check`, `gsc.js check` and `gh label create`
 - Never create a branch or PR; never delete anything
