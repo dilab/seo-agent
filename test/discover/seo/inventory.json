@@ -1,0 +1,12 @@
+{"generated":"2026-10-26","root":".","pages":[
+{"path":"/a-guide","file":"a.blade.php","kind":"guide","h1":"Storage Limits by Plan","last_commit":{"date":"2026-09-01","by_agent":false}},
+{"path":"/b-guide","file":"b.blade.php","kind":"guide","h1":"How Long Are Recordings Stored?","last_commit":{"date":"2026-09-01","by_agent":false}},
+{"path":"/c-guide","file":"c.blade.php","kind":"guide","h1":"Storage Full? Fix It","last_commit":{"date":"2026-10-16","by_agent":true}},
+{"path":"/d-tool","file":"d.blade.php","kind":"tool","h1":"Storage Calculator","last_commit":{"date":"2026-09-01","by_agent":false}},
+{"path":"/e-guide","file":"e.blade.php","kind":"guide","h1":"Recover Deleted Recordings","last_commit":{"date":"2026-09-01","by_agent":false}},
+{"path":"/f-guide","file":"f.blade.php","kind":"guide","h1":"Download Everything at Once","last_commit":{"date":"2026-09-01","by_agent":false}},
+{"path":"/g-guide","file":"g.blade.php","kind":"guide","h1":"Auto Delete Settings (And Trash) {{ $year }}","last_commit":{"date":"2026-10-22","by_agent":false}},
+{"path":"/h-guide","file":"h.blade.php","kind":"guide","h1":"Plan Tricks","last_commit":{"date":"2026-09-01","by_agent":false}},
+{"path":"/i-guide","file":"i.blade.php","kind":"guide","h1":"Export Before Cancelling","last_commit":{"date":"2026-09-01","by_agent":false}},
+{"path":"/pricing","file":"p.blade.php","kind":"pricing","h1":"Pricing","last_commit":{"date":"2026-09-01","by_agent":false}}
+]}

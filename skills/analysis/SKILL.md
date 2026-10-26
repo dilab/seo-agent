@@ -1,13 +1,13 @@
 ---
 name: analysis
-description: Turn the tracked keywords in /seo/strategy.md into scored backlog items, each with a content brief that write/refresh can execute without guessing. Seeded mode (DataForSEO only, no GSC). Honours the `proposed` gate from the keywords skill, scores potential on topic volume, spend-capped. Run weekly or on demand; idempotent within a day.
+description: Turn the tracked keywords in /seo/strategy.md into scored backlog items, each with a content brief that write/refresh can execute without guessing. Seeded mode (tracked keywords via DataForSEO) always runs; discovery mode (Search Console via gsc.js + discover.js) runs when GSC is wired and adds refresh items for decaying, striking-distance and low-CTR pages, and rescores open items with real impressions. Honours the `proposed` gate from the keywords skill, scores potential on topic volume, spend-capped. Run weekly or on demand; idempotent within a day.
 ---
 
-# analysis — seeded mode
+# analysis — seeded mode, plus discovery when GSC is wired
 
-Input: `## Tracked keywords` in `/seo/strategy.md`. Output: `/seo/inventory.json` (every public page of the site), items appended to `/seo/backlog.md`, one compact SERP context file per keyword under `/seo/data/serp/<date>/`, a rank snapshot in `/seo/data/ranks/<date>.json`, one commit. You never write articles and never ask the owner anything mid-run; decide, log, move on.
+Input: `## Tracked keywords` in `/seo/strategy.md`, and — in discovery mode — the Search Console snapshot. Output: `/seo/inventory.json` (every public page of the site), items appended to `/seo/backlog.md`, one compact SERP context file per keyword under `/seo/data/serp/<date>/`, a rank snapshot in `/seo/data/ranks/<date>.json`, one commit. You never write articles and never ask the owner anything mid-run; decide, log, move on.
 
-Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js` scans the repo for public pages (no network, no cost). `${CLAUDE_PLUGIN_ROOT}/scripts/dfs.js` is a DataForSEO REST client that prints compact JSON (`check`, `serp`, `volume`, `difficulty`, `parse`). Credentials come from `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` in the environment. If the `dataforseo` MCP server is connected you may use its `api_request` tool with the same endpoint paths instead, but prefer the script: it strips a 200 KB SERP response to the twenty fields you need. Spend per keyword is ≈ $0.01–0.02; the summary reports the total.
+Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js` scans the repo for public pages (no network, no cost). `${CLAUDE_PLUGIN_ROOT}/scripts/gsc.js` pulls Search Console (free, read-only) and `${CLAUDE_PLUGIN_ROOT}/scripts/discover.js` turns its snapshot into refresh candidates (no network). `${CLAUDE_PLUGIN_ROOT}/scripts/dfs.js` is a DataForSEO REST client that prints compact JSON (`check`, `serp`, `volume`, `difficulty`, `parse`). Credentials come from `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` in the environment. If the `dataforseo` MCP server is connected you may use its `api_request` tool with the same endpoint paths instead, but prefer the script: it strips a 200 KB SERP response to the twenty fields you need. Spend per keyword is ≈ $0.01–0.02; the summary reports the total.
 
 ## 0. Preconditions — stop on the first failure, print why
 
@@ -16,7 +16,8 @@ Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js` scans the repo for public 
 3. `node ${CLAUDE_PLUGIN_ROOT}/scripts/dfs.js check` prints `{"ok":true,…}`. Exit 2 = credentials missing; exit 1 = API refused. Print the message and stop; never fall back to web search for SERP data.
 4. Read `/seo/backlog.md` (create with a `# Backlog — <product>` heading if missing), `/seo/done.md`, `/seo/rejected.md` (treat missing as empty).
 5. Read the `## SEO agent` block in `CLAUDE.md`: articles path, how a title and URL slug are found. Blade views without frontmatter are fine; the block says where the title lives.
-6. **Inventory** — `node ${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js --root .` writes `/seo/inventory.json`: one row per public page (path, file, kind, title, description, h1, h2s, word_count, images_dir, last_commit) merged from the articles glob in `CLAUDE.md`, `Route::view` entries, and the sitemap (`public/sitemap.xml`, or pass `--sitemap <file|url>`). Read the file. Its stdout lists `added`/`removed` since the previous inventory and pages with no source file; keep those for the summary. Pages of kind `legal`, `home`, `pricing` and `page` are never refresh targets, but they are link targets.
+6. **Search Console** — `node ${CLAUDE_PLUGIN_ROOT}/scripts/gsc.js check`. `ok: true` → discovery mode is on: `gsc.js site --days 28 --save seo/data/gsc` writes `/seo/data/gsc/<end>.json` (the window ends at today − 3; same day → overwrite). Anything else → print `GSC: not wired — seeded mode only` with the script's message and carry on; nothing below that mentions discovery runs.
+7. **Inventory** — `node ${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js --root .` writes `/seo/inventory.json`: one row per public page (path, file, kind, title, description, h1, h2s, word_count, images_dir, last_commit) merged from the articles glob in `CLAUDE.md`, `Route::view` entries, and the sitemap (`public/sitemap.xml`, or pass `--sitemap <file|url>`). Read the file. Its stdout lists `added`/`removed` since the previous inventory and pages with no source file; keep those for the summary. Pages of kind `legal`, `home`, `pricing` and `page` are never refresh targets, but they are link targets.
 
 ### `strategy.md` contract (what this skill reads)
 
@@ -26,21 +27,35 @@ Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js` scans the repo for public 
 ## Never write about
 - <phrase or topic>; an item whose keyword or angle matches is dropped
 ## Caps
-analysis_max_keywords: 5     analysis_budget_usd: 0.50     proposed_auto_accept_days: 7
+analysis_max_keywords: 5     analysis_budget_usd: 0.50     proposed_auto_accept_days: 7     discovery_max_items: 2
 word_range: 1200–2200     location_code: 2840     language_code: en
 ## Tracked keywords
-- <keyword> (cluster: <c>[, proposed <date>, vol <n>, kd <n>, write|refresh:/path[, striking]])   ← only the keyword is required
+- <keyword> (cluster: <c>[, proposed <date>|gsc <date>, vol <n>, kd <n>, write|refresh:/path[, striking][, decaying]])   ← only the keyword is required
 ```
 
 A keyword without a cluster tag is assigned the cluster whose name, hub or spoke line shares the most words with it; no overlap → `unclustered` (fit 4, reported).
 
 ## 1. Select keywords
 
-A keyword is **pending** when no `backlog.md` item (any status except `dropped`) and no `done.md` line names it as `<type>: <keyword>` or in `target_keyword`. A keyword tagged `proposed <date>` is **waiting** until the owner removes the tag or `<date>` + `proposed_auto_accept_days` has passed; report waiting ones, never process them. Walk `## Tracked keywords` in order, skip non-pending and waiting ones, skip never-write matches (report them), stop after `analysis_max_keywords`. Nothing pending → print `backlog is current` (and `run /seo-agent:keywords` if nothing is waiting either) and stop without committing.
+A keyword is **pending** when no `backlog.md` item (any status except `dropped`) and no `done.md` line names it as `<type>: <keyword>` or in `target_keyword`. A keyword tagged `proposed <date>` is **waiting** until the owner removes the tag or `<date>` + `proposed_auto_accept_days` has passed; report waiting ones, never process them. Walk `## Tracked keywords` in order, skip non-pending and waiting ones, skip never-write matches (report them), stop after `analysis_max_keywords`. Nothing pending and no discovery candidates → print `backlog is current` (and `run /seo-agent:keywords` if nothing is waiting either) and stop. Before stopping, leave the tree clean: if `seo/inventory.json` or `seo/data/gsc/` changed in §0, commit them alone as `seo: inventory <date>` — a dirty tree blocks every other skill.
 
 **One page, one item.** Two keywords can resolve to the same existing page (the strategy line's `refresh:/path`, or the coverage check in §2). If a pending keyword's refresh target already has an open backlog item, or an earlier keyword in this run already targets it, do not create a second item: fold the keyword into that item as `also_targets: <keyword> (vol <n>, kd <n>)`, add its PAA questions to `must answer`, and add its volume to that item's `topic_vol` (rescore the new item; never rescore an existing one, just append the `also_targets` line and note it in the summary). Folded keywords count toward `analysis_max_keywords` and still spend their SERP call, because their questions improve the brief.
 
 Spend: note the run start `START=$(date -u +%FT%TZ)` (UTC, like the ledger); before each keyword, `dfs.js spend --since START`; if `total` ≥ `analysis_budget_usd`, stop taking new keywords and report the rest as `skipped: budget`.
+
+### 1b. Discovery candidates (only when §0.6 said GSC is wired)
+
+`node $P/scripts/discover.js --root . --max <discovery_max_items>` reads the snapshot just saved plus the inventory, strategy, backlog, done and rejected files and prints `candidates`, `skipped` and `tools`. It is deterministic and makes no network calls; do not second-guess its exclusions (recently done, rejected within 90 days, item in progress, never-write, non-article kinds) — report them. Each candidate names a page of ours, its `reasons` (`decaying`: impressions −30% vs the prior 28 days; `striking`: weighted position 8–20 above the impressions floor; `ctr-gap`: position ≤ 12, CTR < 1%, impressions ≥ 4× the floor), its top GSC query as `keyword`, the cluster, and `gsc_potential` (1–10 from impressions at stake).
+
+The **gsc line** every discovery item carries, written at item level after `evidence`:
+`- gsc: <END>: <reasons> — imps <prior>→<now> (<pct>%), pos <a>→<b>, ctr <x>%, top query "<q>" (<n> imps)`
+A `ctr-gap` reason adds `; title/description rewrite in scope` — `refresh` reads that and may change them.
+
+- **`annotate`** (an open item already targets the page): add the gsc line (replace an older one), then rescore: `potential = max(current potential, gsc_potential)`, `ease + 1` when `striking` (clamp 10), fit unchanged; rewrite the `- score:` line. No SERP call, no spend. Same date already on the line → no change. Report `rescored B-nnn 1.4 → 3.5`.
+- **`new`**: a refresh keyword. If a tracked keyword or a strategy line `refresh:<path>` already names this page, that keyword is the item's keyword and the candidate's top query goes in `also_targets`; otherwise the candidate's `keyword` is the item's keyword (`keyword_source: h1` means GSC had no query rows for the page — say so in `evidence`). Then the keyword runs through §2–§5 exactly like a tracked one: it counts toward `analysis_max_keywords`, spends its SERP call, gets a full brief, `type: refresh`, `target: <path>`, plus the gsc line, and is scored with `potential = max(topic potential, gsc_potential)` and `ease + 1` when `striking`. Append its keyword to `## Tracked keywords` as `- <keyword> (cluster: <c>, gsc <END>, refresh:<path>[, striking][, decaying])` so `feedback` tracks its position — no `proposed` gate, because the evidence is our own traffic, not a guess. `human_edited` → the item is `status: open (human-edited <date>)` as in the hard rules.
+- **`deferred`** (over `discovery_max_items`) and **`tools`** (a tool page with a signal; not a refresh target): summary only.
+
+Order of spend: tracked pending keywords first (the owner chose them), then `new` discovery candidates in the order the script prints them, until `analysis_max_keywords` or the budget stops the run.
 
 ## 2. Gather, per keyword
 
@@ -110,13 +125,14 @@ Append new items to `/seo/backlog.md`, highest score first among the new ones. N
 ## 6. Snapshot and commit
 
 1. `/seo/data/ranks/<date>.json`: `{ date, location_code, keywords: { "<kw>": { ours: <rank|null>, our_url, volume, kd, top10: [{rank, domain, url}], features: {...} } } }`. Overwrite on the same date.
-2. `git add seo/backlog.md seo/inventory.json seo/data/` (includes `seo/data/spend.jsonl`) and commit on the current branch: `seo: analysis <date> — <n> items, <m> skipped`. No branch, no PR: planning files commit directly.
+2. `git add seo/backlog.md seo/inventory.json seo/data/` (includes `seo/data/spend.jsonl` and `seo/data/gsc/`), plus `seo/strategy.md` when §1b appended a keyword line, and commit on the current branch: `seo: analysis <date> — <n> items, <m> skipped[, <k> rescored]`. No branch, no PR: planning files commit directly.
 3. A cluster hub that is `none` or missing is not invented; the item links to siblings only and the summary says which cluster needs a hub.
 
 ## 7. Summary (≤ 12 lines, printed last)
 
 - keywords processed / waiting (proposed, with the date they auto-accept) / skipped, each skip with its reason (already in backlog, never-write, budget, API error)
-- new items: `B-id score type keyword` one per line, top first
+- new items: `B-id score type keyword` one per line, top first; discovery items carry their reasons (`decaying`, `striking`, `ctr-gap`)
+- discovery: window and floor; `rescored B-nnn old → new (reasons)`; deferred candidates and tool-page signals (path, reasons); the script's `skipped` list with reasons; or `GSC: not wired`
 - inventory: page count, pages added/removed since last run, pages without a source file
 - misses: failed parses, keywords with no volume data, unclustered keywords, clusters without a hub
 - DataForSEO spend this run from `dfs.js spend --since START`, against `analysis_budget_usd`
@@ -125,6 +141,7 @@ Append new items to `/seo/backlog.md`, highest score first among the new ones. N
 ## Hard rules
 
 - No article writing; no edits outside `/seo/`
+- GSC is read-only and free; discovery never creates `write` items (gaps are `keywords`' job), never rescores a claimed, in-review or blocked item, never adds a second item for a page, and never bypasses the done/rejected cool-downs `discover.js` applies
 - SERP, volume and difficulty data only from DataForSEO through `dfs.js` (or the MCP `api_request` tool); WebFetch is allowed only as the fallback for a competitor page the parser returned empty. If DataForSEO fails mid-run, finish the keywords already gathered and report the rest as skipped
 - Never process a `proposed` keyword before its gate opens; never exceed `analysis_budget_usd`
 - ≤ 5 parsed pages per keyword, ≤ `analysis_max_keywords` keywords per run

@@ -188,8 +188,16 @@ async function call(token, url, body) {
   return json;
 }
 // HTTPS request that honours https_proxy / HTTPS_PROXY / all_proxy (CONNECT tunnel), which Node's fetch ignores.
-// Returns { ok, status, text }.
-function request(url, { method = 'GET', headers = {}, body } = {}) {
+// Returns { ok, status, text }. Connection-level failures (reset, timeout, proxy drop) are retried twice; HTTP errors are not.
+async function request(url, opts = {}) {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { return await requestOnce(url, opts); }
+    catch (e) { last = e; if (attempt < 2) await new Promise(r => setTimeout(r, 1500 * (attempt + 1))); }
+  }
+  throw last;
+}
+function requestOnce(url, { method = 'GET', headers = {}, body } = {}) {
   const u = new URL(url);
   const proxy = proxyFor(u.hostname);
   const opts = { method, headers: { ...headers, host: u.host, 'content-length': body ? Buffer.byteLength(body) : 0 }, timeout: 30000 };

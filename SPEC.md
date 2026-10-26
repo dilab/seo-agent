@@ -63,6 +63,7 @@ skills/
   audit/SKILL.md
 scripts/
   gsc.js                   Search Console → JSON
+  discover.js              GSC snapshot → refresh candidates (no network)
   dfs.js                   DataForSEO REST client: serp, overview, suggestions, ideas, related, ranked, competitors, serp-competitors, parse, spend
   inventory.js             repo → seo/inventory.json (every public page); --detect for init
   render.js                HTML → PNG/WebP (frame kit renders)
@@ -179,6 +180,7 @@ Three rejections with the same theme → `feedback` proposes a line in `voice.md
 
 | Script | Input | Output | Notes |
 |---|---|---|---|
+| `discover.js` | `--root . [--snapshot f] [--max 2] [--pos 8-20] [--done-days 56] [--rejected-days 90] [--guard-days 14] [--today d]` | JSON `{window, floor, candidates[{path, keyword, keyword_source, reasons, cluster, gsc_potential, action: new|annotate|deferred, existing_item, human_edited, top_queries}], skipped, tools}` | No network. Reads the newest `seo/data/gsc/*.json`, `inventory.json`, `strategy.md`, `backlog.md`, `done.md`, `rejected.md`. |
 | `gsc.js` | `check`, `sites`, `query --from --to [--dims] [--page]`, `page --path [--days] [--baseline-end]`, `site [--save dir]`, `striking`, `decaying`, `extract` | compact JSON; `site` → `seo/data/gsc/<date>.json` (pages now vs prior with `decaying`, `striking` queries 8–20 above an adaptive `min_impressions` floor (site imps ÷ 50, clamped 10–100), `top_queries`) | No deps: RS256 JWT with `crypto`, `https` with an `https_proxy` CONNECT tunnel (Node `fetch` ignores proxies). Live-verified 2026-10-26 against sc-domain:recordmover.com. Service account from `GSC_SA_JSON` or `GSC_SA_FILE`; property from `--site` / `GSC_SITE` / `seo/brand.json` domain. Data lags 3 days; default end = today − 3. |
 | `render.js` | `--frame <name>`, `--data data.json`, `--out file.png`, `--scale 2` | PNG (and WebP) | Fills a frame template from `/seo/frames/` with data + `brand.json`, renders with headless Chromium. Local files only, no site access. |
 | `validate-article.js` | `--file [--words-warn]` | exit 0/1 + JSON report | Blade or Markdown. Title/description present and within length, slug routed and canonical matches, internal links/anchors/route() names resolve, images and assets exist with alt text, exactly one h1 and ≥3 h2, word count within `word_range`, banned words from `voice.md` (contextual ones warn), placeholders; sitemap, JSON-LD, OG image and hub link are warnings. |
@@ -249,14 +251,12 @@ Brief contract (inside the backlog item):
   sources: <URLs read>
 ```
 
-**Discovery mode** (later) — reads GSC (28d vs prior 28d via `gsc.js`), DataForSEO competitor ranked keywords, GEO monitor, `done.md`, `rejected.md`, open PRs.
-Finds:
-- **striking distance**: queries pos 8–20, impressions ≥100/28d → refresh
-- **decaying**: pages with impressions −30% vs prior period → refresh or consolidate
-- **gaps**: tracked/competitor keywords with no page of ours in top 50 → write
-- **links**: pages that should link to each other and don't → link
-- **technical**: from last crawl → fix
-Scores each 1–10: potential × ease × fit (fit from `strategy.md`; never-write list = fit 0, item dropped). Seeded-mode scoring v2 (2026-10-23): potential comes from **topic volume** (keyword + its PAA questions + grouped variants from the keywords pool, via Labs `keyword_overview`), not one Google Ads row, which was 10/mo for every long-tail seed; intent comes from Labs `search_intent_info` refined by SERP format. Spend-capped by `analysis_budget_usd` (0.50).
+**Discovery mode** (built 2026-10-26) — runs inside `analysis` whenever `gsc.js check` is ok. `gsc.js site --save seo/data/gsc` saves the 28d-vs-prior snapshot; `discover.js` (no network, deterministic, fixture in `test/discover/`) turns it into candidates:
+- **decaying**: page impressions −30% vs prior 28 days → refresh
+- **striking**: page weighted position 8–20 above the impressions floor (floor = site impressions ÷ 50, clamped 10–100, so small sites get rows) → refresh
+- **ctr-gap**: position ≤ 12, CTR < 1%, impressions ≥ 4× floor → the refresh may rewrite title/description
+- exclusions applied by the script: done within 56 days (outcome unmeasured), rejected within 90 days, item claimed/in-review/blocked, never-write, non-article kinds; tool pages reported only
+An open item that already targets the page is **annotated** (a `- gsc:` line) and rescored with `potential = max(topic, gsc_potential)`, `ease + 1` if striking — no spend. Otherwise the page's top GSC query (or its h1) becomes a refresh keyword that runs through the seeded pipeline for a full brief, capped by `discovery_max_items` (2) inside `analysis_max_keywords` and the budget, and is appended to `## Tracked keywords` tagged `gsc <date>` (no `proposed` gate: it is our own traffic). Gaps (keywords with no page of ours) stay with `keywords`; links and technical items wait for `audit`.
 Writes: `backlog.md` (rewritten, existing claimed/in-review items preserved), `data/gsc/<date>.json`, `data/ranks/<date>.json`. Commits to main directly (planning files only).
 Posts: 10-line summary.
 Caps: respects weekly caps in `strategy.md` when ordering; may propose tracked-keyword additions as a separate PR.
@@ -398,6 +398,7 @@ Owner-only setup steps per product (cannot be automated):
 9. `refresh`
 10. `review`
 11. Manual week; observe subscription usage; set cadence
+12. Discovery mode in `analysis` — built 2026-10-26: `discover.js` + §1b; first live run due Monday 2026-11-02 (annotates B-002/B-005/B-006/B-007 on RecordMover's current data)
 12. Scheduled tasks unpaused
 13. `feedback`, `audit`
 14. Dashboard artifact + `dashboard.js`

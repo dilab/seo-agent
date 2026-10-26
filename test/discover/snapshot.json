@@ -1,0 +1,24 @@
+{"site":"sc-domain:example.com","origin":"https://example.com","window":{"from":"2026-09-26","to":"2026-10-23","days":28},"baseline":{"from":"2026-08-29","to":"2026-09-25","days":28},"min_impressions":25,
+"totals":{"current":{"clicks":40,"impressions":2000},"prior":{"clicks":45,"impressions":2200}},
+"pages":[
+{"path":"/a-guide","clicks":2,"impressions":150,"ctr":0.013,"position":25.0,"prior":{"clicks":6,"impressions":300,"position":18.0},"delta":{"impressions_pct":-50},"decaying":true},
+{"path":"/b-guide","clicks":6,"impressions":120,"ctr":0.05,"position":10.0,"prior":{"clicks":5,"impressions":110,"position":11.0},"delta":{"impressions_pct":9},"decaying":false},
+{"path":"/c-guide","clicks":2,"impressions":500,"ctr":0.004,"position":9.0,"prior":{"clicks":2,"impressions":480,"position":9.5},"delta":{"impressions_pct":4},"decaying":false},
+{"path":"/d-tool","clicks":3,"impressions":90,"ctr":0.033,"position":12.0,"prior":{"clicks":3,"impressions":80,"position":13.0},"delta":{"impressions_pct":12},"decaying":false},
+{"path":"/e-guide","clicks":1,"impressions":40,"ctr":0.025,"position":30.0,"prior":{"clicks":3,"impressions":100,"position":28.0},"delta":{"impressions_pct":-60},"decaying":true},
+{"path":"/f-guide","clicks":1,"impressions":50,"ctr":0.02,"position":22.0,"prior":{"clicks":4,"impressions":120,"position":20.0},"delta":{"impressions_pct":-58},"decaying":true},
+{"path":"/g-guide","clicks":4,"impressions":200,"ctr":0.02,"position":9.5,"prior":{"clicks":4,"impressions":190,"position":10.0},"delta":{"impressions_pct":5},"decaying":false},
+{"path":"/h-guide","clicks":1,"impressions":60,"ctr":0.016,"position":15.0,"prior":{"clicks":1,"impressions":60,"position":15.0},"delta":{"impressions_pct":0},"decaying":false},
+{"path":"/i-guide","clicks":1,"impressions":30,"ctr":0.033,"position":14.0,"prior":{"clicks":1,"impressions":28,"position":14.0},"delta":{"impressions_pct":7},"decaying":false},
+{"path":"/pricing","clicks":5,"impressions":100,"ctr":0.05,"position":9.0,"prior":{"clicks":5,"impressions":100,"position":9.0},"delta":{"impressions_pct":0},"decaying":false},
+{"path":"/ghost","clicks":0,"impressions":40,"ctr":0,"position":12.0,"prior":{"clicks":0,"impressions":80,"position":12.0},"delta":{"impressions_pct":-50},"decaying":true}
+],
+"striking":[],
+"top_queries":[
+{"query":"Storage Limit","page":"/a-guide","clicks":2,"impressions":90,"ctr":0.022,"position":24.0},
+{"query":"plan storage cap","page":"/a-guide","clicks":0,"impressions":30,"ctr":0,"position":27.0},
+{"query":"how long are recordings stored","page":"/b-guide","clicks":6,"impressions":100,"ctr":0.06,"position":10.0},
+{"query":"storage full","page":"/c-guide","clicks":2,"impressions":400,"ctr":0.005,"position":9.0},
+{"query":"bypass the limit on recordings","page":"/h-guide","clicks":1,"impressions":50,"ctr":0.02,"position":15.0},
+{"query":"export recordings before cancelling","page":"/i-guide","clicks":1,"impressions":20,"ctr":0.05,"position":14.0}
+]}
