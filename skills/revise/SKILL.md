@@ -9,7 +9,7 @@ The reviewer said what is wrong and how to fix it, with `file:line`. You apply t
 
 Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/{inventory,validate-article,render}.js`. Skills you follow inline: `${CLAUDE_PLUGIN_ROOT}/skills/images/SKILL.md`. Set `P=${CLAUDE_PLUGIN_ROOT}`.
 
-Arguments: `--pr <n>` (revise this PR only), `--type write|refresh` (used by the calling skill: only PRs of that type). With neither, every open `needs-work` PR, oldest first.
+Arguments: `--pr <n>` (revise this PR only), `--type write|refresh|fix|link` (used by the calling skill: only PRs of that type). With neither, every open `needs-work` PR, oldest first.
 
 ## 0. Preconditions
 

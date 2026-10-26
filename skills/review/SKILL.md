@@ -33,7 +33,7 @@ Rounds: count your earlier comments on the PR containing `<!-- seo-review round`
 
 `git fetch origin <branch>`; `git worktree add <tmp>/pr-<n> origin/<branch>` (the owner's checkout is never touched; remove the worktree in §6). In the worktree:
 
-- `git diff --stat <base>...HEAD` and the full diff of every non-binary file. The allowed set: the article, its route line, the sitemap generator line, its image folder, `seo/data/drafts/<id>.plan.md`, (write) the regenerated sitemap. Any other file → a finding.
+- `git diff --stat <base>...HEAD` and the full diff of every non-binary file. The allowed set: the article, its route line, the sitemap generator line, its image folder, `seo/data/drafts/<id>.plan.md`, (write) the regenerated sitemap; for a `fix` item the one file its `target` names plus its image folder; for a `link` item the `from` files its `links:` lines name. Any other file → a finding.
 - The article in full as it stands on the branch; for `refresh`, also the base version (`git show <base>:<file>`).
 - `seo/data/drafts/<id>.plan.md`, the brief, `serp_context` JSON (top pages' headings, PAA, `existing`).
 - `voice.md`, `review-rubric.md`, `rejected.md` in full; `strategy.md › Never write about` and the cluster line.
@@ -50,6 +50,8 @@ Work the list; every finding gets `file:line` (branch line numbers), what is wro
 2. Files outside the allowed set; a route or sitemap change for `refresh`; a deleted article anywhere.
 3. `refresh`: every `id=` from the base version still exists; every internal link from the base version still exists; deleted lines ≤ half the base line count; config-rendered values still rendered from config (no `{{ $facts… }}` turned into a literal); the H1 unchanged unless the plan's **Change** list says why.
 4. `write`: route registered in the repo's way; sitemap entry present; hub page linked within the first 300 words; file name equals the slug unless the repo's convention differs.
+4b. `fix`: every hunk is one of the item's `fixes:` codes (head include args, an `alt`, an `href`, an `id` added to a heading); no prose line changed except a title, description or alt; deletions ≤ 5 per file; every `fixes:` line is either applied or listed `not applied` in the PR body; a rendered `cover` shows the page's H1 verbatim.
+4c. `link`: insertions only (deletions ≤ 2 per file, reflow); each added link resolves (validator) and points at the `to` of a `links:` pair; one new sentence per pair, outside headings, FAQ answers, callouts, tables and code; anchor text names the target's subject (no "here", "this guide"); the page did not already link the target; each pair is applied or `not applied` in the PR body.
 5. Research talk in prose: `grep -niE "top result|ranks? (first|#|[0-9])|people also ask|this search|the serp|competitor"` on the article — any hit in prose (not in a code comment) is blocking.
 6. Frames: for every image the PR adds, the text on the frame (title, rows, steps, value, quote) appears in the article body; alt text describes the content and matches the frame; the file sits in the article's image folder; `<img>` has `width`, `height`, `loading="lazy"`, `decoding="async"` where the siblings do; the hero is the `ogImage`. An image not referenced by the article, or a reference to a missing file, is blocking. A hero with an empty placeholder box is blocking.
 7. FAQ: every FAQ question in the body has the same text in the JSON-LD and vice versa; JSON-LD built the way the siblings build it (`json_encode` or the Markdown equivalent), not hand-written.

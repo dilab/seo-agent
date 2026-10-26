@@ -60,10 +60,12 @@ skills/
   images/SKILL.md
   review/SKILL.md
   feedback/SKILL.md
+  fix/SKILL.md
   audit/SKILL.md
 scripts/
   gsc.js                   Search Console → JSON
   discover.js              GSC snapshot → refresh candidates (no network)
+  sitecheck.js             validator over every article + hub↔spoke links → fix/link findings (no network)
   dfs.js                   DataForSEO REST client: serp, overview, suggestions, ideas, related, ranked, competitors, serp-competitors, parse, spend
   inventory.js             repo → seo/inventory.json (every public page); --detect for init
   render.js                HTML → PNG/WebP (frame kit renders)
@@ -134,7 +136,7 @@ CLAUDE.md                article storage conventions (see §5), validator
 ## Clusters            (hub + spokes, target keyword each, priority 1–3)
 ## Competitors         (domains for gap analysis)
 ## Never write about   (hard exclusions, enforced at scoring)
-## Caps                 new_per_week: 1, refresh_per_week: 2, open_prs_max: 3
+## Caps                 new_per_week: 1, refresh_per_week: 2, fixes_per_week: 3, open_prs_max: 3
 ## Auto-merge           [] | [refresh] | [refresh, write]
 ## Tracked keywords    (list; analysis may propose additions via PR)
 ```
@@ -180,6 +182,7 @@ Three rejections with the same theme → `feedback` proposes a line in `voice.md
 
 | Script | Input | Output | Notes |
 |---|---|---|---|
+| `sitecheck.js` | `--root . [--cluster name]` | JSON `{articles, fixes[{path, file, code, severity, msg}], report_only[…], links[{from, from_file, to, reason: spoke→hub|hub→spoke|orphan, cluster}], orphans, clusters}` | No network. Runs `validate-article.js` per article; internal links via `route('name')` / `url()` / `href`; cluster = hub match → backlog/done item → stem overlap. |
 | `discover.js` | `--root . [--snapshot f] [--max 2] [--pos 8-20] [--done-days 56] [--rejected-days 90] [--guard-days 14] [--today d]` | JSON `{window, floor, candidates[{path, keyword, keyword_source, reasons, cluster, gsc_potential, action: new|annotate|deferred, existing_item, human_edited, top_queries}], skipped, tools}` | No network. Reads the newest `seo/data/gsc/*.json`, `inventory.json`, `strategy.md`, `backlog.md`, `done.md`, `rejected.md`. |
 | `gsc.js` | `check`, `sites`, `query --from --to [--dims] [--page]`, `page --path [--days] [--baseline-end]`, `site [--save dir]`, `striking`, `decaying`, `extract` | compact JSON; `site` → `seo/data/gsc/<date>.json` (pages now vs prior with `decaying`, `striking` queries 8–20 above an adaptive `min_impressions` floor (site imps ÷ 50, clamped 10–100), `top_queries`) | No deps: RS256 JWT with `crypto`, `https` with an `https_proxy` CONNECT tunnel (Node `fetch` ignores proxies). Live-verified 2026-10-26 against sc-domain:recordmover.com. Service account from `GSC_SA_JSON` or `GSC_SA_FILE`; property from `--site` / `GSC_SITE` / `seo/brand.json` domain. Data lags 3 days; default end = today − 3. |
 | `render.js` | `--frame <name>`, `--data data.json`, `--out file.png`, `--scale 2` | PNG (and WebP) | Fills a frame template from `/seo/frames/` with data + `brand.json`, renders with headless Chromium. Local files only, no site access. |
@@ -294,6 +297,9 @@ For each entry: `render.js --frame <type>` with the entry as data. Read each PNG
 ### `revise` — run by `write`/`refresh` first, or `/seo-agent:revise --pr n`
 Applies the latest `<!-- seo-review round k: needs-work -->` comment to its PR and nothing else: each blocking finding's rule is confirmed, then the reviewer's fix is applied as written (or recorded `not applied` with the rule quoted when the finding is wrong or the fix would break another rule); one-line rule-backed notes are applied, owner-addressed notes skipped; a frame whose text changed is re-rendered under the same name; validator must pass (a fix that breaks it is reverted); commit `seo: revise <id> round k`, push, PR body corrected, reply `<!-- seo-revise round k -->`, `needs-work` removed so `review` runs round k+1. Worktree checkout; owner commits on the branch since the review → hands off. `write`/`refresh` run it before new work and stop after a revision (one unit of work per run).
 
+### `fix` — Friday, or any day the write/refresh slot is idle (built 2026-10-26)
+Executes the top open `fix` or `link` item. `fix`: one page's mechanical findings from `sitecheck.js` (title/description length, canonical, ogImage via a `cover` frame, alt, broken link/anchor, sitemap). `link`: one sentence with a link per missing hub↔spoke pair in a cluster. Confirms findings still exist, drops owner-fixed ones, human-edited guard per file, validator per touched file, diff guard (fix ≤ 5 deletions/file, link ≤ 2), one PR, `fixes_per_week` cap (3). Items come only from analysis §1c (`sitecheck.js`), never from judgement. `review` checks the hunks against the item's own list.
+
 ### `feedback` — 1st of month
 Needs `gsc.js check` ok; otherwise prints the owner's setup steps and stops.
 1. `gsc.js site --save seo/data/gsc` → the 28-day snapshot (totals, per-page deltas, decaying, striking, top queries) that discovery-mode `analysis` reads; tracked-keyword positions now vs the snapshot from ~4 weeks ago
@@ -398,6 +404,7 @@ Owner-only setup steps per product (cannot be automated):
 9. `refresh`
 10. `review`
 11. Manual week; observe subscription usage; set cadence
+13. `fix` skill + `sitecheck.js` + analysis §1c — built 2026-10-26; RecordMover's first sitecheck: 2 pages with 204/216-char descriptions and no canonical/ogImage, 3 missing links in download-recover, /where-do-zoom-recordings-go orphaned
 12. Discovery mode in `analysis` — built 2026-10-26: `discover.js` + §1b; first live run due Monday 2026-11-02 (annotates B-002/B-005/B-006/B-007 on RecordMover's current data)
 12. Scheduled tasks unpaused
 13. `feedback`, `audit`

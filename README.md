@@ -23,6 +23,10 @@ Without a repo: `cd test && node ../scripts/render.js --contact-sheet --brand se
 ```
 Loop: `keywords` proposes (tagged `proposed <date>`), the owner prunes or waits 7 days, `analysis` briefs what is accepted, `write`/`refresh` execute. Every DataForSEO call is logged to `seo/data/spend.jsonl`; `node scripts/dfs.js spend --since <iso>` sums it, and both skills stop at the caps in `## Caps` (`discovery_budget_usd`, `analysis_budget_usd`).
 
+## Hygiene: fix and link items
+
+`analysis` also runs `scripts/sitecheck.js` (no network): the validator over every article plus missing hub↔spoke links. Findings become `fix` items (one per page: title/description length, canonical, ogImage, alt, broken links) and `link` items (one per cluster). `/seo-agent:fix` executes the top one as a small PR, capped by `fixes_per_week` (3).
+
 ## Discovery mode
 
 `analysis` runs in seeded mode (tracked keywords) always, and in discovery mode too when `node scripts/gsc.js check` is ok: it saves a Search Console snapshot to `seo/data/gsc/`, and `scripts/discover.js` turns decaying, striking-distance and low-CTR pages into refresh candidates — annotating and rescoring open backlog items, or briefing up to `discovery_max_items` new ones. No extra spend beyond the SERP calls those briefs need.

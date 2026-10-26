@@ -48,7 +48,7 @@ The plugin is loaded per session with `--plugin-dir`; nothing is installed into 
    ```
    It detects where articles live and writes the `## SEO agent` block in `CLAUDE.md`, drafts `seo/strategy.md`, `seo/voice.md` and `seo/review-rubric.md` from your existing pages, extracts `seo/brand.json`, installs the frame kit in `seo/frames/`, creates `backlog.md` / `done.md` / `rejected.md`, creates the `seo` label, and commits `seo: init <date>` on the current branch. It prints the manual steps it could not do (login, credentials, GSC). Re-run it after a layout change (articles moved, new sitemap mechanism); it only fills gaps and never overwrites a file you edited.
 3. Read the init commit. Check the `Articles:` glob in the CLAUDE.md block above everything else: every later skill reads it. Open `seo/frames/contact-sheet.png` to see the frames.
-4. Edit **`seo/strategy.md`**: ICP, positioning, clusters and their hub pages, `## Never write about`, `## Caps` (defaults: `new_per_week: 1`, `refresh_per_week: 2`, `open_prs_max: 3`, `discovery_max_items: 2`, `word_range: 1200–2200`, spend caps), `## Auto-merge` (`[]` until you trust the reviewer; then `[refresh]`, later `[refresh, write]`), and the seed lines under `## Tracked keywords`. Edit **`seo/voice.md`** where the draft got your voice wrong. Commit: `git commit -am "seo: strategy and voice edits"`.
+4. Edit **`seo/strategy.md`**: ICP, positioning, clusters and their hub pages, `## Never write about`, `## Caps` (defaults: `new_per_week: 1`, `refresh_per_week: 2`, `open_prs_max: 3`, `discovery_max_items: 2`, `fixes_per_week: 3`, `word_range: 1200–2200`, spend caps), `## Auto-merge` (`[]` until you trust the reviewer; then `[refresh]`, later `[refresh, write]`), and the seed lines under `## Tracked keywords`. Edit **`seo/voice.md`** where the draft got your voice wrong. Commit: `git commit -am "seo: strategy and voice edits"`.
 5. Optional: run the frame design loop (`/seo-agent:frames`, then `--from-canvas <url>` after you approve the Claude Design canvas). The default kit works without it.
 6. Fill the pipeline: `/seo-agent:keywords` → delete the proposals you do not want in `seo/strategy.md` (commit) → `/seo-agent:analysis`. Then start the weekly loop below.
 7. Before the first `write`/`refresh`: if the product renders facts from a config file (RecordMover: `config/zoom_facts.php`), make sure `seo/voice.md › Product claims` names it, so every number on a page is rendered, never typed.
@@ -69,7 +69,7 @@ Credentials: `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` exported in the shell fo
 
 Each skill does one unit of work and stops. Run one skill per session; `review` in a session that did not write the PR.
 
-## Weekly loop (caps from `seo/strategy.md`: 1 new article, 2 refreshes, 3 open PRs)
+## Weekly loop (caps from `seo/strategy.md`: 1 new article, 2 refreshes, 3 fixes, 3 open PRs)
 
 | Day | Command | What it does | What you do after |
 |---|---|---|---|
@@ -80,6 +80,8 @@ Each skill does one unit of work and stops. Run one skill per session; `review` 
 | Wed later | `/seo-agent:review` | As Tuesday. | Merge / close. |
 | Thu | `/seo-agent:refresh` | Second refresh of the week, or the revision of Wednesday's PR. | — |
 | Thu later | `/seo-agent:review` | As Tuesday. | Merge / close. |
+| Fri | `/seo-agent:fix` | Top open `fix` or `link` item → one small PR: a head fix for one page, or the missing links inside one cluster. Says `no open fix or link items` when the site is clean. | — |
+| Fri later | `/seo-agent:review` | As Tuesday. | Merge / close. |
 | Fri | deploy | — | `git checkout production && git merge main && git push`, then on the server `php artisan sitemap:generate`. Run `/seo-agent:review` once more so the sweep records the merges. |
 
 A `needs-work` PR costs one extra execute run: the next `write`/`refresh` revises it instead of starting new work, and the following `review` passes or escalates it. `/seo-agent:revise --pr <n>` does the revision on demand without waiting for the next day.
@@ -104,6 +106,8 @@ A `needs-work` PR costs one extra execute run: the next `write`/`refresh` revise
 | `PR cap reached` | 3 SEO PRs open | merge or close some |
 | `weekly new-article cap reached` / `weekly refresh cap reached` | caps hit | wait for next week, or raise the cap in `## Caps` |
 | `no open write items` / `no open refresh items` | backlog empty for that type | run `keywords`, prune, `analysis` |
+| `no open fix or link items` | site hygiene is clean | nothing |
+| `weekly fix cap reached` | 3 fix/link items this week | wait, or raise `fixes_per_week` |
 | `guarded: <path> edited by owner …` | you edited that article in the last 14 days | nothing; it tries the next item |
 | `blocked:<reason>` on an item | validator failed 3 times or a rewrite was needed | read the reason in `backlog.md`; fix the brief or decide the rewrite; set `status: open` to retry |
 | `escalate` label | review failed twice | read both review comments and decide; merge, close, or fix by hand and remove the label |

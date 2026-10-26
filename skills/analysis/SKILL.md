@@ -7,7 +7,7 @@ description: Turn the tracked keywords in /seo/strategy.md into scored backlog i
 
 Input: `## Tracked keywords` in `/seo/strategy.md`, and — in discovery mode — the Search Console snapshot. Output: `/seo/inventory.json` (every public page of the site), items appended to `/seo/backlog.md`, one compact SERP context file per keyword under `/seo/data/serp/<date>/`, a rank snapshot in `/seo/data/ranks/<date>.json`, one commit. You never write articles and never ask the owner anything mid-run; decide, log, move on.
 
-Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js` scans the repo for public pages (no network, no cost). `${CLAUDE_PLUGIN_ROOT}/scripts/gsc.js` pulls Search Console (free, read-only) and `${CLAUDE_PLUGIN_ROOT}/scripts/discover.js` turns its snapshot into refresh candidates (no network). `${CLAUDE_PLUGIN_ROOT}/scripts/dfs.js` is a DataForSEO REST client that prints compact JSON (`check`, `serp`, `volume`, `difficulty`, `parse`). Credentials come from `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` in the environment. If the `dataforseo` MCP server is connected you may use its `api_request` tool with the same endpoint paths instead, but prefer the script: it strips a 200 KB SERP response to the twenty fields you need. Spend per keyword is ≈ $0.01–0.02; the summary reports the total.
+Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/inventory.js` scans the repo for public pages (no network, no cost). `${CLAUDE_PLUGIN_ROOT}/scripts/gsc.js` pulls Search Console (free, read-only) and `${CLAUDE_PLUGIN_ROOT}/scripts/discover.js` turns its snapshot into refresh candidates (no network). `${CLAUDE_PLUGIN_ROOT}/scripts/sitecheck.js` runs the validator over every article and checks hub↔spoke links (no network) for `fix` and `link` items. `${CLAUDE_PLUGIN_ROOT}/scripts/dfs.js` is a DataForSEO REST client that prints compact JSON (`check`, `serp`, `volume`, `difficulty`, `parse`). Credentials come from `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` in the environment. If the `dataforseo` MCP server is connected you may use its `api_request` tool with the same endpoint paths instead, but prefer the script: it strips a 200 KB SERP response to the twenty fields you need. Spend per keyword is ≈ $0.01–0.02; the summary reports the total.
 
 ## 0. Preconditions — stop on the first failure, print why
 
@@ -56,6 +56,15 @@ A `ctr-gap` reason adds `; title/description rewrite in scope` — `refresh` rea
 - **`deferred`** (over `discovery_max_items`) and **`tools`** (a tool page with a signal; not a refresh target): summary only.
 
 Order of spend: tracked pending keywords first (the owner chose them), then `new` discovery candidates in the order the script prints them, until `analysis_max_keywords` or the budget stops the run.
+
+### 1c. Hygiene items — `fix` and `link` (always, no network, no spend)
+
+`node $P/scripts/sitecheck.js --root .` prints `fixes` (validator findings the `fix` skill can apply mechanically: title/description length, canonical, ogImage, alt, broken internal link or anchor, sitemap), `report_only` (content problems: word count, h1/h2, placeholders, banned words, blade errors), `links` (missing `spoke→hub`, `hub→spoke`, `orphan` pairs per cluster) and `orphans`.
+
+- One **`fix` item per page** with ≥ 1 entry in `fixes`, unless the page already has a `fix` item that is not `dropped`/`rejected` and not `done` more than 56 days ago, or the page is the target of an open/claimed/in-review `refresh` item (the refresh's validator pass fixes the head as part of that work; report `owned by B-nnn`). Item: `### [B-nnn] fix: <path>`, `- type: fix`, `- target: <path>`, `- fixes:` followed by one indented `<code>: <msg>` line per finding.
+- One **`link` item per cluster** with ≥ 1 pair, unless an open/claimed/in-review `link` item for that cluster exists (then append the new pairs to it if it is `open`). Item: `### [B-nnn] link: <cluster>`, `- type: link`, `- links:` followed by one indented `/from → /to (<reason>)` line per pair.
+- Score: `potential` = the page's `gsc_potential` from the snapshot when discovery ran (a `link` item: the highest among its `to` pages), else 3; `ease` 10; `fit` from the cluster priority. `evidence: sitecheck <date>: <n> findings` / `<n> missing links, <k> orphans`. No brief, no `serp_context`: these items carry their own work list.
+- `report_only` goes in the summary only (word counts under the floor are refresh work, not fixes).
 
 ## 2. Gather, per keyword
 
@@ -132,6 +141,7 @@ Append new items to `/seo/backlog.md`, highest score first among the new ones. N
 
 - keywords processed / waiting (proposed, with the date they auto-accept) / skipped, each skip with its reason (already in backlog, never-write, budget, API error)
 - new items: `B-id score type keyword` one per line, top first; discovery items carry their reasons (`decaying`, `striking`, `ctr-gap`)
+- hygiene: fix/link items created (id, path or cluster, count), pages skipped because a refresh owns them, `report_only` findings (≤ 5 lines, grouped by code)
 - discovery: window and floor; `rescored B-nnn old → new (reasons)`; deferred candidates and tool-page signals (path, reasons); the script's `skipped` list with reasons; or `GSC: not wired`
 - inventory: page count, pages added/removed since last run, pages without a source file
 - misses: failed parses, keywords with no volume data, unclustered keywords, clusters without a hub
@@ -141,6 +151,7 @@ Append new items to `/seo/backlog.md`, highest score first among the new ones. N
 ## Hard rules
 
 - No article writing; no edits outside `/seo/`
+- `fix` and `link` items come only from `sitecheck.js` output, never from judgement; one per page / per cluster
 - GSC is read-only and free; discovery never creates `write` items (gaps are `keywords`' job), never rescores a claimed, in-review or blocked item, never adds a second item for a page, and never bypasses the done/rejected cool-downs `discover.js` applies
 - SERP, volume and difficulty data only from DataForSEO through `dfs.js` (or the MCP `api_request` tool); WebFetch is allowed only as the fallback for a competitor page the parser returned empty. If DataForSEO fails mid-run, finish the keywords already gathered and report the rest as skipped
 - Never process a `proposed` keyword before its gate opens; never exceed `analysis_budget_usd`
