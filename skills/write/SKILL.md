@@ -17,7 +17,7 @@ Arguments: `--item B-nnn` (pick this item instead of the top one), `--no-pr` (st
 
 1. Product repo root; `git status --porcelain` is empty; current branch is the default branch. A dirty tree means the owner has work in progress: print the file list and stop. Never commit, stash, or discard those changes yourself, even when they are `seo/` planning files — the only commits this skill makes are the claim, the article, and the in-review status.
 2. `/seo/strategy.md`, `/seo/voice.md`, `/seo/brand.json`, `/seo/frames/`, `/seo/backlog.md` exist; `CLAUDE.md` has the `## SEO agent` block. Missing → name the skill that creates it (`init`, `brand`, `frames`, `analysis`).
-3. From `## Caps`: `new_per_week` (1), `open_prs_max` (3), `word_range`. From the block: `Articles` glob and format, `Title/description`, `URL slug`, `Images`, `Validate`, `Sitemap`, `Preview`, `PR label`.
+3. From `## Caps`: `new_per_week` (1), `open_prs_max` (3), `word_range`. From the block: `Articles` glob and format, `Title/description`, `URL slug`, `Images`, `Validate`, `Sitemap`, `Footer` (optional), `Preview`, `PR label`.
 4. `gh auth status` works → PR mode; else `--no-pr` mode and say so.
 5. **Caps.** Open SEO PRs: `gh pr list --label seo --state open --json number` (no `gh` → count backlog items with `in-review`); ≥ `open_prs_max` → stop `PR cap reached`. New this week: backlog `write` items with a `claimed:` date in the current week plus `done.md` write lines dated in the current week; ≥ `new_per_week` → stop `weekly new-article cap reached`. **Week** = the calendar week, Monday 00:00 to Sunday, local time (`date -v-monday` on macOS / `date -d 'last monday'` on Linux gives the start when today is not Monday; today itself when it is). Last week's merges never count against this week.
 6. `node $P/scripts/inventory.js --root .` (refreshes `seo/inventory.json`; the siblings and link targets come from it).
@@ -61,7 +61,7 @@ Write the article file at the path the `Articles` glob implies. File name = the 
 - The reader never hears about the research: no "the top result for this search", no rankings, no competitor names as evidence, no "people also ask". `serp_context` shapes the outline; it is not content.
 - Image placeholders: write the `<img>` (or `![alt](path)`) at the planned sections now, with the paths the images step will produce.
 
-Register the URL the way the repo does (for Laravel: a `Route::view('<slug>', '<view>')->name('<group>.<file>')` next to the sibling routes). If the block names a `Sitemap` mechanism, add the page there too and run its generator when it is a local command; commit the regenerated sitemap.
+Register the URL the way the repo does (for Laravel: a `Route::view('<slug>', '<view>')->name('<group>.<file>')` next to the sibling routes). If the block names a `Sitemap` mechanism, add the page there too and run its generator when it is a local command; commit the regenerated sitemap. If the block names a `Footer` mechanism, add the page's link there too, in the place and label style the line describes (one link, matching the siblings' markup).
 
 ## 5. Images
 
@@ -75,7 +75,7 @@ Also run the repo's own checks if the block names any (`Validate` may list more 
 
 ## 7. Commit, push, PR
 
-Files allowed in the commit: the article, its route line, the sitemap generator line and regenerated sitemap, the image folder, `/seo/data/drafts/<id>.plan.md`. Anything else modified → stop and say what (a skeleton copy went wrong).
+Files allowed in the commit: the article, its route line, the sitemap generator line and regenerated sitemap, the footer link line when the block names a `Footer`, the image folder, `/seo/data/drafts/<id>.plan.md`. Anything else modified → stop and say what (a skeleton copy went wrong).
 
 Commit: `seo: write <id> — <H1>`; push `-u origin <branch>`.
 
@@ -83,7 +83,7 @@ Before the PR, push the default branch if it is ahead of `origin` (`git rev-list
 
 PR mode: `gh pr create --label <PR label> --title "seo: <H1>" --body-file <tmp>` with the body from `templates/pr-body.md`:
 - **Why**: the item's `evidence` line and score.
-- **What changed**: ≤ 5 bullets — the article (words, sections), route and sitemap, images (count and types), anything dropped from the brief and why.
+- **What changed**: ≤ 5 bullets — the article (words, sections), route, sitemap and footer link, images (count and types), anything dropped from the brief and why.
 - **Preview**: each rendered image inline via `https://github.com/<owner>/<repo>/blob/<branch>/<image path>?raw=true`; the `Preview` URL from the block.
 - **Checks**: `validate: pass | links: n internal, m external | words: n | images: k/plan | review: pending`.
 

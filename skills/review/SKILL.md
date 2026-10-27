@@ -14,7 +14,7 @@ Arguments: `--pr <n>` (review this PR only, even if it already has a verdict lab
 ## 0. Preconditions and sweep
 
 1. Product repo root; `git status --porcelain` empty; on the default branch. `gh auth status` works — review needs GitHub; without it stop: `review needs gh`.
-2. `/seo/strategy.md` (`## Caps`, `## Auto-merge`, `## Never write about`), `/seo/voice.md`, `/seo/review-rubric.md`, `/seo/rejected.md`, `/seo/backlog.md` exist. From `CLAUDE.md › ## SEO agent`: `Articles`, `Validate`, `Preview`, `PR label`.
+2. `/seo/strategy.md` (`## Caps`, `## Auto-merge`, `## Never write about`), `/seo/voice.md`, `/seo/review-rubric.md`, `/seo/rejected.md`, `/seo/backlog.md` exist. From `CLAUDE.md › ## SEO agent`: `Articles`, `Validate`, `Preview`, `PR label`, `Footer` (optional).
 3. Labels: `gh label create ready --color 0E8A16 --description "SEO review passed" --force`, same for `needs-work` (`D93F0B`, "SEO review: fixes listed in comment") and `escalate` (`B60205`, "SEO review failed twice; owner decides"). `--force` makes this idempotent.
 4. **Sweep.** `gh pr list --label <PR label> --state all --json number,state,mergedAt,closedAt,title,headRefName`. For each backlog item with `status: in-review:#n`:
    - PR `MERGED` → append to `/seo/done.md`: `- <mergedAt date> <id> <type> <path> pr#<n>`; set the item's status to `- status: done:<date>`.
@@ -33,7 +33,7 @@ Rounds: count your earlier comments on the PR containing `<!-- seo-review round`
 
 `git fetch origin <branch>`; `git worktree add <tmp>/pr-<n> origin/<branch>` (the owner's checkout is never touched; remove the worktree in §6). In the worktree:
 
-- `git diff --stat <base>...HEAD` and the full diff of every non-binary file. The allowed set: the article, its route line, the sitemap generator line, its image folder, `seo/data/drafts/<id>.plan.md`, (write) the regenerated sitemap; for a `fix` item the one file its `target` names plus its image folder; for a `link` item the `from` files its `links:` lines name. Any other file → a finding.
+- `git diff --stat <base>...HEAD` and the full diff of every non-binary file. The allowed set: the article, its route line, the sitemap generator line, the footer partial when the block names a `Footer` (one added link line only), its image folder, `seo/data/drafts/<id>.plan.md`, (write) the regenerated sitemap; for a `fix` item the one file its `target` names plus its image folder; for a `link` item the `from` files its `links:` lines name. Any other file → a finding.
 - The article in full as it stands on the branch; for `refresh`, also the base version (`git show <base>:<file>`).
 - `seo/data/drafts/<id>.plan.md`, the brief, `serp_context` JSON (top pages' headings, PAA, `existing`).
 - `voice.md`, `review-rubric.md`, `rejected.md` in full; `strategy.md › Never write about` and the cluster line.
@@ -49,7 +49,7 @@ Work the list; every finding gets `file:line` (branch line numbers), what is wro
 1. Validator exits 0 with no `fails`. Any `warns` are notes unless the rubric names them.
 2. Files outside the allowed set; a route or sitemap change for `refresh`; a deleted article anywhere.
 3. `refresh`: every `id=` from the base version still exists; every internal link from the base version still exists; deleted lines ≤ half the base line count; config-rendered values still rendered from config (no `{{ $facts… }}` turned into a literal); the H1 unchanged unless the plan's **Change** list says why.
-4. `write`: route registered in the repo's way; sitemap entry present; hub page linked within the first 300 words; file name equals the slug unless the repo's convention differs.
+4. `write`: route registered in the repo's way; sitemap entry present; when the block names a `Footer`, one link to the new page added there in the siblings' markup and nothing else changed in that file; hub page linked within the first 300 words; file name equals the slug unless the repo's convention differs.
 4b. `fix`: every hunk is one of the item's `fixes:` codes (head include args, an `alt`, an `href`, an `id` added to a heading); no prose line changed except a title, description or alt; deletions ≤ 5 per file; every `fixes:` line is either applied or listed `not applied` in the PR body; a rendered `cover` shows the page's H1 verbatim.
 4c. `link`: insertions only (deletions ≤ 2 per file, reflow); each added link resolves (validator) and points at the `to` of a `links:` pair; one new sentence per pair, outside headings, FAQ answers, callouts, tables and code; anchor text names the target's subject (no "here", "this guide"); the page did not already link the target; each pair is applied or `not applied` in the PR body.
 5. Research talk in prose: `grep -niE "top result|ranks? (first|#|[0-9])|people also ask|this search|the serp|competitor"` on the article — any hit in prose (not in a code comment) is blocking.
