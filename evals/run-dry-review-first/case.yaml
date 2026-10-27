@@ -1,0 +1,30 @@
+schema_version: "1.1"
+name: run-dry-review-first
+description: "Wednesday with an unlabelled open PR: review must come before the refresh slot."
+tags: [run]
+runs: 1
+execution:
+  max_turns: 40
+  timeout_seconds: 1200
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:run --as wed --dry-run"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: names-review-and-pr
+    type: regex
+    pattern: "review[\\s\\S]*#5"
+    flags: i
+  - name: no-commit
+    type: tool_used
+    tool: Bash
+    input_match: "git commit"
+    min: 0
+    max: 0
+  - name: decision-correct
+    type: llm
+    criteria: |
+      PASS when the dry-run decision is the review step (branch 1: an open SEO PR, #5, has no verdict label yet) and the report says no refresh or write happens in this session.
+      FAIL if it decides to refresh B-004, to write, to fix, or says nothing is due.

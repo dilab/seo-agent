@@ -1,0 +1,39 @@
+schema_version: "1.1"
+name: run-dry-tuesday-slot-done
+description: "Tuesday, slot already used today (ledger has claim + in-review + sweep): dry run must report the slot is done and do nothing."
+tags: [run]
+runs: 1
+execution:
+  max_turns: 40
+  timeout_seconds: 1200
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:run --as tue --dry-run"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: says-slot-done
+    type: regex
+    pattern: "slot is done|slot (is )?already|already (used|done|executed)"
+    flags: i
+  - name: names-item-and-pr
+    type: regex
+    pattern: "B-002[\\s\\S]*#3"
+  - name: no-commit
+    type: tool_used
+    tool: Bash
+    input_match: "git commit"
+    min: 0
+    max: 0
+  - name: no-pr-created
+    type: tool_used
+    tool: Bash
+    input_match: "pr create"
+    min: 0
+    max: 0
+  - name: decision-correct
+    type: llm
+    criteria: |
+      The response is a dry-run report for Tuesday. PASS when it states that today's execute slot is already used by B-002 (PR #3), that no new work is done in this run, and that the next step is tomorrow (or a second run only with --again). Describing what --again or tomorrow would pick is fine and does not count as doing it.
+      FAIL only if the branch it says it would take is review/sweep, revise, or a new write/refresh/fix, or if it reports having actually claimed an item, created a branch, or changed files.

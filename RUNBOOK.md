@@ -36,7 +36,7 @@
 7. Optional: `alias seo='claude --plugin-dir ~/Code/seo-agent'` so a session is `cd ~/Code/<product> && seo`.
 8. For the hands-off job (below), the same credentials go in `~/.config/seo-agent/env` instead of (or as well as) the shell profile: launchd does not read your profile. `~/Code/seo-agent/scripts/schedule.sh env` creates the file.
 
-The plugin is loaded per session with `--plugin-dir`; nothing is installed into Claude Code globally. To update it: `cd ~/Code/seo-agent && git pull && npm install && claude plugin validate .`.
+The plugin is loaded per session with `--plugin-dir`; nothing is installed into Claude Code globally. To update it: `cd ~/Code/seo-agent && git pull && npm install && claude plugin validate .`. After editing any skill: `npm run eval` (or `npm run eval -- --tag run` for the one-minute subset) — it replays fixed situations against the skills and fails when a wording change altered what they do.
 
 ### Once per product
 
@@ -124,7 +124,7 @@ A `needs-work` PR costs one extra execute run: the next `write`/`refresh` revise
 
 ## Quarterly
 
-`/seo-agent:audit` — not built yet. Crawl, broken links, meta, orphan pages → fix PR + backlog items.
+`/seo-agent:audit` on the first weekday of January, April, July and October (or after a site migration). It crawls the live site from the home page, the sitemap and the inventory, checks every internal and external link, redirects, titles, descriptions, canonicals, noindex, h1s, alt text, thin pages and sitemap gaps (`--cwv` adds Core Web Vitals from PageSpeed for the home page and hubs), saves `seo/data/crawl/<date>.json` with a diff against the previous audit, and commits `seo: audit <date>`. Article-level findings become `fix` and `link` items that Friday's `fix` slot executes; everything on layouts, navigation, pricing or legal pages is printed for you. No PR. Hands-off: `/seo-agent:schedule --quarterly --at 07:30` adds a second launchd job that runs it on the 1st of those months.
 
 ## When something stops
 

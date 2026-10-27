@@ -1,0 +1,39 @@
+schema_version: "1.1"
+name: fix-already-fixed
+description: "A fix item whose finding sitecheck no longer reports: fix marks it done (already fixed) and opens no PR."
+tags: [fix, guard]
+runs: 1
+execution:
+  max_turns: 40
+  timeout_seconds: 1200
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:fix"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: status-already-fixed
+    type: regex
+    pattern: "done:.*already fixed"
+    target: { source: file, path: seo/backlog.md }
+  - name: already-fixed-commit
+    type: tool_used
+    tool: Bash
+    input_match: "already fixed"
+    min: 1
+  - name: no-branch
+    type: tool_used
+    tool: Bash
+    input_match: "git checkout -b"
+    min: 0
+    max: 0
+  - name: no-pr
+    type: regex
+    pattern: "pr create"
+    target: { source: file, path: .gh/calls.log }
+    match: not_contains
+  - name: reports-already-fixed
+    type: regex
+    pattern: "already fixed"
+    flags: i

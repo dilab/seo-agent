@@ -2,5 +2,12 @@
   "name": "seo-agent",
   "private": true,
   "version": "0.1.0",
-  "dependencies": { "playwright": "^1.47.0", "sharp": "^0.33.5" }
+  "dependencies": {
+    "playwright": "^1.47.0",
+    "sharp": "^0.33.5"
+  },
+  "scripts": {
+    "eval": "claude plugin eval . --trust-plugin --scaffold --allow-tools Bash Edit Write MultiEdit --ablation none --no-publish --runs 1",
+    "test": "bash test/schedule/run.sh && node test/sitecheck/run.js"
+  }
 }

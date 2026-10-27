@@ -1,0 +1,48 @@
+schema_version: "1.1"
+name: revise-applies-fixes
+description: "A needs-work PR with two listed fixes: revise applies exactly those, pushes, comments, and hands back to review."
+tags: [revise]
+runs: 1
+execution:
+  max_turns: 100
+  timeout_seconds: 1800
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:revise --pr 5"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: pushes-the-branch
+    type: tool_used
+    tool: Bash
+    input_match: "git push origin seo/B-003-recover-deleted"
+    min: 1
+  - name: revise-commit
+    type: tool_used
+    tool: Bash
+    input_match: "seo: revise B-003 round 1"
+    min: 1
+  - name: label-removed
+    type: regex
+    pattern: "pr edit 5 --remove-label needs-work"
+    target: { source: file, path: .gh/calls.log }
+  - name: never-ready
+    type: regex
+    pattern: "add-label ready"
+    target: { source: file, path: .gh/calls.log }
+    match: not_contains
+  - name: revise-comment
+    type: regex
+    pattern: "seo-revise round 1"
+    target: { source: file, path: .gh/comments/5.md }
+  - name: backlog-revised-line
+    type: regex
+    pattern: "revised: round 1"
+    target: { source: file, path: seo/backlog.md }
+  - name: only-the-listed-fixes
+    type: llm
+    criteria: |
+      Read the trace. PASS when the edits to content/guides/recover-deleted.md replace the banned word "leverage" and remove (or repoint) the /restore-from-backup link, and nothing else in the article changes; the validator is re-run; the branch is pushed; a comment headed <!-- seo-revise round 1 --> is posted; the needs-work label is removed; the PR is not labelled ready.
+      FAIL if other parts of the article were rewritten, if the agent reviewed and approved its own work, or if the branch was not pushed.
+    focus: trace

@@ -68,12 +68,14 @@ scripts/
   gsc.js                   Search Console → JSON
   discover.js              GSC snapshot → refresh candidates (no network)
   sitecheck.js             validator over every article + hub↔spoke links → fix/link findings (no network)
+  crawl.js                 live-site crawler for audit: links, redirects, meta, canonical, noindex, sitemap, orphans, CWV
   dfs.js                   DataForSEO REST client: serp, overview, suggestions, ideas, related, ranked, competitors, serp-competitors, parse, spend
   inventory.js             repo → seo/inventory.json (every public page); --detect for init
   render.js                HTML → PNG/WebP (frame kit renders)
   validate-article.js      frontmatter, links, word count, image refs
   dashboard.js             write rows to the dashboard artifact DB
   schedule.sh              headless runner (fresh sessions until `next: tomorrow`, log, notification) + launchd installer
+evals/                     `claude plugin eval` suite: _lib/{fixture.sh,gh.js} + one case dir per behaviour (npm run eval)
 templates/
   frames/                  base frame templates, parameterised by brand.json
     _base.css, hero.html, stat.html, compare.html, steps.html, quote.html
@@ -317,8 +319,8 @@ Needs `gsc.js check` ok; otherwise prints the owner's setup steps and stops.
 4. Commit `done.md` + snapshot on the default branch, push; ≤ 14-line summary (totals, outcomes, tracked table, decaying/striking counts, themes)
 Never touches `backlog.md`, `strategy.md`, articles or open PRs; rules change only through the PR.
 
-### `audit` — quarterly or on demand
-Crawl site → `data/crawl/<date>.json`: broken links, missing/duplicate meta, orphan pages, thin pages, redirect chains, sitemap gaps, CWV from PageSpeed if reachable. Trivial fixes → one PR. Rest → `backlog.md` as `fix` items.
+### `audit` — quarterly or on demand (built 2026-10-27)
+`crawl.js` (no deps, proxy-aware, polite UA, `--max` pages, manual redirect following) crawls the live origin from `/` + the served sitemap + the inventory, checks external links once, optionally asks PageSpeed Insights for CWV on the home page and hubs, and emits findings with a severity split: `fix` (title, description, canonical, alt, link to a 404/redirect, sitemap gap — on an article page the `fix` skill may edit) and `report` (broken external, redirect chain, duplicate meta, noindex-in-sitemap, sitemap 404, orphan, thin, h1, mixed content, slow, 5xx, anything on non-article pages). Saved to `seo/data/crawl/<date>.json` with `diff` vs the previous crawl. The skill writes `fix` items (lines tagged `(audit <date>)`; `fix` confirms them with `crawl.js --check` instead of sitecheck) and `link` items for orphans, prints the owner list, commits `seo: audit <date>`. No PR, no edits. Scheduled by `schedule.sh install --quarterly` (1 Jan/Apr/Jul/Oct). Tested offline by `test/crawl/run.js` against a local server with planted faults.
 
 ---
 
@@ -365,7 +367,7 @@ One firing per weekday morning (default 07:00) is the whole schedule, because `r
 3. `claude -p "/seo-agent:run" --plugin-dir <plugin> --settings templates/runner-settings.json --output-format json`, in a fresh session, repeated while the result's last line is `next: again` (opened/revised a PR → review it; labelled `needs-work` → revise it), at most `SEO_AGENT_MAX_SESSIONS` (4) per firing, each under a wall-clock timeout
 4. append every session's report to `~/Library/Logs/seo-agent/<product>-<date>.log`; post a macOS notification with the `did:` line and whether the owner has to act
 
-`schedule.sh install <product> --at HH:MM --days 1-5` writes `~/Library/LaunchAgents/com.seo-agent.<product>.plist` (captures the installing shell's `PATH`; `SEO_AGENT_QUIET=1`), `status`/`log`/`uninstall` manage it; the `schedule` skill wraps these. A Mac asleep at the hour runs the job on wake; off → the day is skipped and the next firing catches up. Permissions are the allowlist in `templates/runner-settings.json` (git, gh, node, php artisan, read-only shell tools, file edits; `rm`, force-push, `sudo` denied), never a blanket bypass. Owner installs after the manual test week; monthly `feedback` and Monday planning need no extra entries since `run` chains them. `audit` (when built) gets its own quarterly entry.
+`schedule.sh install <product> --at HH:MM --days 1-5` writes `~/Library/LaunchAgents/com.seo-agent.<product>.plist` (captures the installing shell's `PATH`; `SEO_AGENT_QUIET=1`), `status`/`log`/`uninstall` manage it; the `schedule` skill wraps these. A Mac asleep at the hour runs the job on wake; off → the day is skipped and the next firing catches up. Permissions are the allowlist in `templates/runner-settings.json` (git, gh, node, php artisan, read-only shell tools, file edits; `rm`, force-push, `sudo` denied), never a blanket bypass. Owner installs after the manual test week; monthly `feedback` and Monday planning need no extra entries since `run` chains them. `install --quarterly` adds `com.seo-agent.<product>.audit`, which fires `run --skill audit` on 1 Jan/Apr/Jul/Oct.
 
 ---
 
@@ -417,8 +419,9 @@ Owner-only setup steps per product (cannot be automated):
 11. Manual week; observe subscription usage; set cadence
 13. `fix` skill + `sitecheck.js` + analysis §1c — built 2026-10-26; RecordMover's first sitecheck: 2 pages with 204/216-char descriptions and no canonical/ogImage, 3 missing links in download-recover, /where-do-zoom-recordings-go orphaned
 12. Discovery mode in `analysis` — built 2026-10-26: `discover.js` + §1b; first live run due Monday 2026-11-02 (annotates B-002/B-005/B-006/B-007 on RecordMover's current data)
+14. Eval suite — built 2026-10-27: `evals/` (10 cases over run/review/revise/write/fix guards, fixture product + stand-in gh, deterministic graders + one LLM judge per case); `npm run eval` after any SKILL.md edit
 12. Scheduling — built 2026-10-27: `scripts/schedule.sh` (runner + launchd installer, fixture-tested with a fake `claude`, live `--dry-run` verified on RecordMover) + `schedule` skill; `run` now ends with `next: again|tomorrow`. Owner installs after the manual week
-13. `feedback`, `audit`
+13. `feedback` — built 2026-10-25; `audit` — built 2026-10-27 (crawl.js + audit skill + quarterly launchd entry + fix-skill live confirmation)
 14. Dashboard artifact + `dashboard.js`
 15. Marketplace registration; onboard product two
 

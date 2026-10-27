@@ -1,0 +1,58 @@
+schema_version: "1.1"
+name: review-needs-work
+description: "PR with a banned word and a broken link: review labels needs-work with file:line fixes and never touches the branch."
+tags: [review]
+runs: 1
+execution:
+  max_turns: 100
+  timeout_seconds: 1800
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:review"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: label-needs-work
+    type: regex
+    pattern: "pr edit 5 --add-label needs-work"
+    target: { source: file, path: .gh/calls.log }
+  - name: not-ready
+    type: regex
+    pattern: "add-label ready"
+    target: { source: file, path: .gh/calls.log }
+    match: not_contains
+  - name: not-merged
+    type: regex
+    pattern: "pr merge"
+    target: { source: file, path: .gh/calls.log }
+    match: not_contains
+  - name: comment-header
+    type: regex
+    pattern: "seo-review round 1: needs-work"
+    target: { source: file, path: .gh/comments/5.md }
+  - name: finds-banned-word
+    type: regex
+    pattern: "leverage"
+    target: { source: file, path: .gh/comments/5.md }
+    flags: i
+  - name: finds-broken-link
+    type: regex
+    pattern: "restore-from-backup"
+    target: { source: file, path: .gh/comments/5.md }
+  - name: backlog-review-line
+    type: regex
+    pattern: "review: round 1 needs-work"
+    target: { source: file, path: seo/backlog.md }
+  - name: never-pushes-branch
+    type: tool_used
+    tool: Bash
+    input_match: "git push origin seo/"
+    min: 0
+    max: 0
+  - name: comment-quality
+    type: llm
+    criteria: |
+      The file is the review comment left on PR #5. PASS when it names both blocking faults — the banned word "leverage" and the broken internal link /restore-from-backup — each tied to content/guides/recover-deleted.md with a line number and a concrete fix, and it does not claim to have changed the branch or approved the PR.
+      FAIL only if one of the two faults is missing, a fault has no file/line, the comment says it fixed something itself, or it marks the PR ready.
+    focus: { source: file, path: .gh/comments/5.md }

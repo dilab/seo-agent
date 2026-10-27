@@ -17,7 +17,8 @@ Without a repo: `cd test && node ../scripts/render.js --contact-sheet --brand se
 /seo-agent:analysis     # seeded mode: tracked keywords in seo/strategy.md → seo/backlog.md items with briefs
 /seo-agent:write        # top open write item → article in the repo's own format + frame-kit images → one PR labelled seo (--no-pr without gh)
 /seo-agent:run          # the daily command: review/revise if a PR waits, else the day's slot (Mon analysis, Tue write, Wed–Thu refresh, Fri fix)
-/seo-agent:schedule     # autopilot: launchd job on this Mac that runs `run` headlessly each weekday morning (install/status/test/log/uninstall)
+/seo-agent:schedule     # autopilot: launchd job on this Mac that runs `run` headlessly each weekday morning (install/status/test/log/uninstall; --quarterly adds the audit job)
+/seo-agent:audit        # quarterly: crawl the live site → seo/data/crawl/<date>.json, fix/link items for article pages, owner list for the rest
 /seo-agent:refresh      # top open refresh item → additive edit of the existing article (keep/add/change plan, 14-day human-edit guard, rewrite guard) → one PR labelled seo
 /seo-agent:review       # fresh session: sweeps merged/closed SEO PRs into done.md/rejected.md, reviews the rest against brief + voice + rubric + rejected.md → label ready (auto-merge per strategy) or needs-work with file:line fixes; escalate after 2 rounds
 /seo-agent:revise       # apply a needs-work review's fixes to its PR (only those), re-validate, push, reply, hand back to review; write/refresh run this first when such a PR exists
@@ -29,6 +30,10 @@ Loop: `keywords` proposes (tagged `proposed <date>`), the owner prunes or waits 
 
 `analysis` also runs `scripts/sitecheck.js` (no network): the validator over every article plus missing hub↔spoke links. Findings become `fix` items (one per page: title/description length, canonical, ogImage, alt, broken links) and `link` items (one per cluster). `/seo-agent:fix` executes the top one as a small PR, capped by `fixes_per_week` (3).
 
+## Audit
+
+`/seo-agent:audit` (quarterly): `scripts/crawl.js` crawls the live site — status codes, redirects, titles, descriptions, canonicals, noindex, h1s, alt text, thin pages, sitemap gaps, orphans, external links, optional Core Web Vitals via `--cwv` — into `seo/data/crawl/<date>.json` with a diff against the last audit. Article-level findings become `fix`/`link` items for the `fix` skill (tagged `(audit <date>)`, confirmed live with `crawl.js --check`); the rest is printed for the owner. `node test/crawl/run.js` tests it against a local server. `/seo-agent:schedule --quarterly` runs it on the 1st of Jan/Apr/Jul/Oct.
+
 ## Discovery mode
 
 `analysis` runs in seeded mode (tracked keywords) always, and in discovery mode too when `node scripts/gsc.js check` is ok: it saves a Search Console snapshot to `seo/data/gsc/`, and `scripts/discover.js` turns decaying, striking-distance and low-CTR pages into refresh candidates — annotating and rescoring open backlog items, or briefing up to `discovery_max_items` new ones. No extra spend beyond the SERP calls those briefs need.
@@ -36,6 +41,10 @@ Loop: `keywords` proposes (tagged `proposed <date>`), the owner prunes or waits 
 ## Hands-off
 
 `scripts/schedule.sh run <product>` is one firing: fetch, clean tree on the default branch, then `claude -p "/seo-agent:run"` in fresh sessions until the run ends with `next: tomorrow` (execute → review → revise → review chain in ≤4 sessions), with a log in `~/Library/Logs/seo-agent/` and a macOS notification. `schedule.sh install <product> --at 07:00` writes a launchd agent for weekdays; `status`, `log`, `uninstall`. Secrets come from `~/.config/seo-agent/env` (`schedule.sh env` creates it from `templates/env.example`); unattended sessions use the allowlist in `templates/runner-settings.json`. `bash test/schedule/run.sh` exercises the runner with a fake `claude`.
+
+## Evals
+
+`npm run eval` runs `evals/` with `claude plugin eval`: ten cases that scaffold a fixture product (Markdown guides, planning files, git history, a stand-in `gh`) and check what `run`, `review`, `revise`, `write` and `fix` do in fixed situations — the git ledger, review-before-execute, the PR cap, the dirty-tree guard, sweep, needs-work with file:line fixes, ready without auto-merge, the weekly write cap, already-fixed items, revise applying only the listed fixes. Run it after editing any SKILL.md. `evals/README.md` has the flags, the cost and how to add a case.
 
 ## Env
 `GSC_SA_FILE` (path to a Google service-account JSON) or `GSC_SA_JSON` (the JSON on one line), optional `GSC_SITE` (`sc-domain:example.com`) — needed by `feedback` and discovery-mode `analysis`. Share the Search Console property with the account's `client_email`, enable the Search Console API in the Cloud project, then check with `node scripts/gsc.js check`. Honours `https_proxy`.

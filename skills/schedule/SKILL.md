@@ -7,7 +7,7 @@ description: Put the daily `run` on autopilot. Installs (or inspects, tests, rem
 
 Everything that runs unattended is `scripts/schedule.sh`; this skill only drives it and explains the result. Set `S=${CLAUDE_PLUGIN_ROOT}/scripts/schedule.sh` and `PRODUCT` = the product repo root (the current directory when it holds `seo/strategy.md`, else ask).
 
-Arguments: `install [--at HH:MM] [--days 1-5]` (default), `status`, `test`, `kick`, `log [n]`, `uninstall`, `env`.
+Arguments: `install [--at HH:MM] [--days 1-5]` (default), `--quarterly [--at HH:MM]` (a second job, `com.seo-agent.<product>.audit`, that runs `/seo-agent:audit` on 1 Jan/Apr/Jul/Oct), `status`, `test`, `kick`, `log [n]`, `uninstall` (removes both), `env`.
 
 ## install (default)
 
@@ -17,7 +17,7 @@ Arguments: `install [--at HH:MM] [--days 1-5]` (default), `status`, `test`, `kic
    - `$S env` has been run and `~/.config/seo-agent/env` exists (`$S env` creates it from `templates/env.example` with mode 600). Tell the owner which values to fill: `DATAFORSEO_LOGIN/PASSWORD` (keywords, analysis), `GSC_SA_FILE` (feedback, discovery — optional), `https_proxy` if their network needs it. Never read, print or guess the file's contents.
    - `node ${CLAUDE_PLUGIN_ROOT}/scripts/dfs.js check` and `gsc.js check` from a shell that has sourced that file are the owner's test; say so rather than running them here.
 2. Pick the time: `--at` or 07:00 local; weekdays `--days` or 1-5. One firing a day is enough — a firing chains execute → review → revise → review in separate sessions on its own.
-3. `$S install $PRODUCT --at <HH:MM> --days <days>` and show its output. The plist lands in `~/Library/LaunchAgents/com.seo-agent.<product>.plist` and captures the current `PATH` (so `claude`, `node`, `gh`, `php` resolve under launchd); re-run install after moving any of them.
+3. `$S install $PRODUCT --at <HH:MM> --days <days>` and show its output. With `--quarterly`: `$S install $PRODUCT --quarterly --at <HH:MM>` instead (one session, the audit skill, no chaining). The plist lands in `~/Library/LaunchAgents/com.seo-agent.<product>.plist` and captures the current `PATH` (so `claude`, `node`, `gh`, `php` resolve under launchd); re-run install after moving any of them.
 4. Explain the permission model in two lines: unattended sessions use `templates/runner-settings.json` (git, gh, node, php artisan, read-only shell tools, file edits; `rm`, force-push and `sudo` denied). A denied tool fails that one call and the run reports it; widen the file deliberately if a log shows a legitimate denial.
 5. Tell the owner to test now with `test` (below) and that a Mac asleep at the hour runs the job on wake; a Mac that is off skips the day (the next firing catches up — the ledger is git, nothing is lost).
 

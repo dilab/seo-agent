@@ -74,6 +74,15 @@ if command -v plutil >/dev/null; then check "plutil lint" 'plutil -lint "$T/x.pl
 out=$(HOME="$T/home" "$S" install "$T/product" --days 1,3,5 --print)
 check "--days 1,3,5" '[ "$(printf "%s" "$out" | grep -c "<key>Weekday</key>")" = 3 ]'
 
+echo "10b. install --quarterly --print and run --skill"
+out=$(HOME="$T/home" "$S" install "$T/product" --quarterly --at 06:15 --print)
+check "audit label" 'printf "%s" "$out" | grep -q "<string>com.seo-agent.product.audit</string>"'
+check "four months on day 1" '[ "$(printf "%s" "$out" | grep -c "<key>Month</key>")" = 4 ] && printf "%s" "$out" | grep -q "<key>Day</key><integer>1</integer><key>Hour</key><integer>6</integer><key>Minute</key><integer>15</integer>"'
+check "passes --skill audit" 'printf "%s" "$out" | grep -q "<string>--skill</string>" && printf "%s" "$out" | grep -q "<string>audit</string>"'
+rm -f "$FAKE_STATE" "$FAKE_STATE.args"; "$S" run "$T/product" --skill audit >/dev/null
+check "audit prompt, single session" 'grep -q -- "-p /seo-agent:audit " "$FAKE_STATE.args" && [ "$(cat "$FAKE_STATE")" = 1 ]'
+out=$(SEO_AGENT_DOW=6 "$S" run "$T/product" --skill audit); check "audit ignores the weekend rule" '! printf "%s" "$out" | grep -q weekend'
+
 echo "11. env creates the file with mode 600"
 SEO_AGENT_ENV="$T/cfg/env" "$S" env >/dev/null
 check "env file" '[ -f "$T/cfg/env" ] && [ "$(stat -f %Lp "$T/cfg/env" 2>/dev/null || stat -c %a "$T/cfg/env")" = 600 ]'

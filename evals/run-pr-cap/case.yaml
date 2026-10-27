@@ -1,0 +1,36 @@
+schema_version: "1.1"
+name: run-pr-cap
+description: "Three open ready PRs at open_prs_max: run prints the merge lines and stops."
+tags: [run]
+runs: 1
+execution:
+  max_turns: 40
+  timeout_seconds: 1200
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:run --as wed"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: three-merge-lines
+    type: regex
+    pattern: "gh pr merge \\d+ --squash"
+    match: "count:3"
+  - name: no-commit
+    type: tool_used
+    tool: Bash
+    input_match: "git commit"
+    min: 0
+    max: 0
+  - name: no-merge-by-agent
+    type: tool_used
+    tool: Bash
+    input_match: "pr merge"
+    min: 0
+    max: 0
+  - name: stops-at-cap
+    type: llm
+    criteria: |
+      PASS when the response says the open-PR cap (3 of 3) is reached, lists the three ready PRs for the owner to merge, and does no new work.
+      FAIL if it merges anything itself, starts a refresh/write/fix, or re-reviews the labelled PRs.

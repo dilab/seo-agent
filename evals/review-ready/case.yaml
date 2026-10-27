@@ -1,0 +1,43 @@
+schema_version: "1.1"
+name: review-ready
+description: "A clean additive PR: review labels ready, does not merge (Auto-merge is empty), and writes the review line."
+tags: [review]
+runs: 1
+execution:
+  max_turns: 100
+  timeout_seconds: 1800
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:review"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: label-ready
+    type: regex
+    pattern: "pr edit 6 --add-label ready"
+    target: { source: file, path: .gh/calls.log }
+  - name: not-needs-work
+    type: regex
+    pattern: "add-label needs-work"
+    target: { source: file, path: .gh/calls.log }
+    match: not_contains
+  - name: not-merged-automerge-empty
+    type: regex
+    pattern: "pr merge"
+    target: { source: file, path: .gh/calls.log }
+    match: not_contains
+  - name: comment-header
+    type: regex
+    pattern: "seo-review round 1: ready"
+    target: { source: file, path: .gh/comments/6.md }
+  - name: backlog-review-line
+    type: regex
+    pattern: "review: round 1 ready"
+    target: { source: file, path: seo/backlog.md }
+  - name: never-pushes-branch
+    type: tool_used
+    tool: Bash
+    input_match: "git push origin seo/"
+    min: 0
+    max: 0

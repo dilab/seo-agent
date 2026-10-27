@@ -1,0 +1,41 @@
+schema_version: "1.1"
+name: write-cap-reached
+description: "A write merged this calendar week: write stops at new_per_week before claiming anything."
+tags: [write, guard]
+runs: 1
+execution:
+  max_turns: 40
+  timeout_seconds: 1200
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:write"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: says-cap
+    type: regex
+    pattern: "cap"
+    flags: i
+  - name: no-commit
+    type: tool_used
+    tool: Bash
+    input_match: "git commit"
+    min: 0
+    max: 0
+  - name: no-branch
+    type: tool_used
+    tool: Bash
+    input_match: "git checkout -b"
+    min: 0
+    max: 0
+  - name: no-pr
+    type: regex
+    pattern: "pr create"
+    target: { source: file, path: .gh/calls.log }
+    match: not_contains
+  - name: stops-at-weekly-cap
+    type: llm
+    criteria: |
+      PASS when the response stops because the weekly new-article cap (new_per_week: 1) is already used by a write merged this week (done.md line for B-001), and no item was claimed, no branch made, no article written.
+      FAIL if it claims B-005, creates a branch, writes any article, or stops for a different reason.

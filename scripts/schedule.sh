@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # schedule.sh — headless runner and launchd installer for /seo-agent:run
 #
-#   schedule.sh run <product-dir> [--max-sessions N] [--dry-run] [-- <args for run>]
-#   schedule.sh install <product-dir> [--at HH:MM] [--days 1-5] [--print]
+#   schedule.sh run <product-dir> [--max-sessions N] [--dry-run] [--skill audit] [-- <args for the skill>]
+#   schedule.sh install <product-dir> [--at HH:MM] [--days 1-5] [--quarterly] [--print]
 #   schedule.sh kick <product-dir>        fire the installed job now through launchd (a real run)
 #   schedule.sh uninstall <product-dir>
 #   schedule.sh status [<product-dir>]
@@ -84,11 +84,12 @@ default_branch() {
 
 # ---------------------------------------------------------------- run
 cmd_run() {
-  local product="" max="$MAX_SESSIONS" dry=0 extra=()
+  local product="" max="$MAX_SESSIONS" dry=0 skill=run extra=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --max-sessions) max="$2"; shift 2 ;;
       --dry-run) dry=1; shift ;;
+      --skill) skill="$2"; shift 2 ;;
       --) shift; extra=("$@"); break ;;
       -h|--help) usage ;;
       -*) extra+=("$1"); shift ;;
@@ -100,12 +101,13 @@ cmd_run() {
   local name; name="$(product_name "$product")"
   mkdir -p "$LOG_DIR"
   LOG="$LOG_DIR/$name-$(date +%F).log"
+  [ "$skill" = run ] || max=1   # other skills are one session, no chaining
   load_env
 
   local dow="${SEO_AGENT_DOW:-$(date +%u)}"
   local forced=0 a
   for a in "${extra[@]+"${extra[@]}"}"; do [ "$a" = "--as" ] && forced=1; done
-  if [ "$dow" -gt 5 ] && [ "$forced" = 0 ]; then
+  if [ "$skill" = run ] && [ "$dow" -gt 5 ] && [ "$forced" = 0 ]; then
     say "weekend — nothing scheduled ($name)"; return 0
   fi
 
@@ -133,7 +135,7 @@ cmd_run() {
     say "abort: $def is not fast-forwardable to origin/$def"; notify "seo-agent · $name" "abort: $def diverged from origin"; return 3
   fi
 
-  local prompt="/seo-agent:run" i=1 rc=0 did="" text="" meta="" parsed="" out="" again=0
+  local prompt="/seo-agent:$skill" i=1 rc=0 did="" text="" meta="" parsed="" out="" again=0
   [ "$dry" = 1 ] && { prompt="$prompt --dry-run"; max=1; }
   [ ${#extra[@]} -gt 0 ] && prompt="$prompt ${extra[*]}"
 
@@ -175,11 +177,12 @@ cmd_run() {
 
 # ---------------------------------------------------------------- install
 cmd_install() {
-  local product="" at="07:00" days="1-5" print=0
+  local product="" at="07:00" days="1-5" print=0 quarterly=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --at) at="$2"; shift 2 ;;
       --days) days="$2"; shift 2 ;;
+      --quarterly) quarterly=1; shift ;;
       --print) print=1; shift ;;
       -h|--help) usage ;;
       *) product="$1"; shift ;;
@@ -189,6 +192,10 @@ cmd_install() {
   product="$(cd "$product" && pwd)" || exit 2
   local name label plist hour minute dlist=() d
   name="$(product_name "$product")"; label="$(label_for "$product")"; plist="$(plist_for "$product")"
+  local skillargs=""
+  if [ "$quarterly" = 1 ]; then label="$label.audit"; plist="${plist%.plist}.audit.plist"; skillargs="    <string>--skill</string>
+    <string>audit</string>
+"; fi
   hour=$((10#${at%%:*})); minute=$((10#${at##*:}))
   if [[ "$days" == *-* ]]; then
     for ((d=${days%%-*}; d<=${days##*-}; d++)); do dlist+=("$d"); done
@@ -197,10 +204,17 @@ cmd_install() {
   fi
   mkdir -p "$LOG_DIR"
   local cal="" envfile=""
-  for d in "${dlist[@]}"; do
-    cal+="      <dict><key>Weekday</key><integer>$d</integer><key>Hour</key><integer>$hour</integer><key>Minute</key><integer>$minute</integer></dict>
+  if [ "$quarterly" = 1 ]; then
+    for d in 1 4 7 10; do
+      cal+="      <dict><key>Month</key><integer>$d</integer><key>Day</key><integer>1</integer><key>Hour</key><integer>$hour</integer><key>Minute</key><integer>$minute</integer></dict>
 "
-  done
+    done
+  else
+    for d in "${dlist[@]}"; do
+      cal+="      <dict><key>Weekday</key><integer>$d</integer><key>Hour</key><integer>$hour</integer><key>Minute</key><integer>$minute</integer></dict>
+"
+    done
+  fi
   [ -n "${SEO_AGENT_ENV:-}" ] && envfile="      <key>SEO_AGENT_ENV</key><string>$SEO_AGENT_ENV</string>
 "
   local content
@@ -216,7 +230,7 @@ cmd_install() {
     <string>$PLUGIN_DIR/scripts/schedule.sh</string>
     <string>run</string>
     <string>$product</string>
-  </array>
+$skillargs  </array>
   <key>StartCalendarInterval</key>
   <array>
 $cal  </array>
@@ -241,7 +255,7 @@ PLIST
   launchctl bootout "gui/$(id -u)/$label" >/dev/null 2>&1 || true
   launchctl bootstrap "gui/$(id -u)" "$plist" || { echo "install: launchctl bootstrap failed" >&2; exit 1; }
   launchctl enable "gui/$(id -u)/$label" >/dev/null 2>&1 || true
-  echo "installed $label: weekdays ${days} at $at → $plist"
+  if [ "$quarterly" = 1 ]; then echo "installed $label: 1 Jan/Apr/Jul/Oct at $at → $plist"; else echo "installed $label: weekdays ${days} at $at → $plist"; fi
   echo "env file: $ENV_FILE $([ -f "$ENV_FILE" ] && echo '(present)' || echo '(MISSING — run: schedule.sh env)')"
   echo "logs: $LOG_DIR/$name-<date>.log · test now: $0 run $product --dry-run"
 }
@@ -259,8 +273,9 @@ cmd_uninstall() {
   product="$(cd "$product" && pwd)" || exit 2
   local label plist; label="$(label_for "$product")"; plist="$(plist_for "$product")"
   launchctl bootout "gui/$(id -u)/$label" >/dev/null 2>&1 || true
-  rm -f "$plist"
-  echo "removed $label"
+  launchctl bootout "gui/$(id -u)/$label.audit" >/dev/null 2>&1 || true
+  rm -f "$plist" "${plist%.plist}.audit.plist"
+  echo "removed $label (and $label.audit if present)"
 }
 
 cmd_status() {
@@ -271,6 +286,7 @@ cmd_status() {
   fi
   product="$(cd "$product" && pwd)" || exit 2
   local label name; label="$(label_for "$product")"; name="$(product_name "$product")"
+  [ -f "$(plist_for "$product" | sed 's/\.plist$/.audit.plist/')" ] && echo "$label.audit: installed (quarterly, 1 Jan/Apr/Jul/Oct)"
   if [ -f "$(plist_for "$product")" ]; then
     echo "$label: installed ($(plist_for "$product"))"
     launchctl print "gui/$(id -u)/$label" 2>/dev/null | grep -E 'state =|last exit code|program =' | sed 's/^/  /'

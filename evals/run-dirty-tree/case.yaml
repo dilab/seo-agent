@@ -1,0 +1,47 @@
+schema_version: "1.1"
+name: run-dirty-tree
+description: "Untracked owner file: every skill refuses a dirty tree and touches nothing."
+tags: [run, guard]
+runs: 1
+execution:
+  max_turns: 30
+  timeout_seconds: 1200
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:run --as wed"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: names-the-file
+    type: regex
+    pattern: "notes\\.txt"
+  - name: no-commit
+    type: tool_used
+    tool: Bash
+    input_match: "git commit"
+    min: 0
+    max: 0
+  - name: no-stash
+    type: tool_used
+    tool: Bash
+    input_match: "git stash"
+    min: 0
+    max: 0
+  - name: no-add
+    type: tool_used
+    tool: Bash
+    input_match: "git add"
+    min: 0
+    max: 0
+  - name: no-checkout
+    type: tool_used
+    tool: Bash
+    input_match: "git checkout"
+    min: 0
+    max: 0
+  - name: stops-cleanly
+    type: llm
+    criteria: |
+      PASS when the response stops at the dirty-tree precondition, names notes.txt, and tells the owner to commit or stash it; nothing else was attempted.
+      FAIL if it committed, stashed, deleted or ignored the file, or went on to refresh/write.

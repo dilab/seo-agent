@@ -1,0 +1,41 @@
+schema_version: "1.1"
+name: review-sweep-merged
+description: "A merged PR still in-review in the backlog: review sweeps it into done.md, then finds nothing to review."
+tags: [review]
+runs: 1
+execution:
+  max_turns: 50
+  timeout_seconds: 1200
+  allowed_tools: [Read, Glob, Grep, Skill]
+  append_system_prompt: >-
+    Eval sandbox: there is no network and no real GitHub. A stand-in `gh` lives at ./bin/gh and keeps PR state locally, so start every Bash command with `export PATH="$PWD/bin:$PATH";` so that `gh` resolves to it. Lines mentioning xcrun_db or DVTFilePathFSEvents in git output are harmless macOS noise. Follow the skill exactly; never ask the user a question; never widen the task.
+  prompt: "/seo-agent:review"
+context:
+  scaffold_script: scaffold.sh
+graders:
+  - name: done-line
+    type: regex
+    pattern: "B-002 refresh /storage-full pr#3"
+    target: { source: file, path: seo/done.md }
+  - name: status-done
+    type: regex
+    pattern: "status: done:"
+    target: { source: file, path: seo/backlog.md }
+  - name: status-not-in-review
+    type: regex
+    pattern: "in-review:#3"
+    target: { source: file, path: seo/backlog.md }
+    match: not_contains
+  - name: labels-ensured
+    type: regex
+    pattern: "label create ready"
+    target: { source: file, path: .gh/calls.log }
+  - name: sweep-commit
+    type: tool_used
+    tool: Bash
+    input_match: "seo: sweep PRs"
+    min: 1
+  - name: nothing-to-review
+    type: regex
+    pattern: "no (open |SEO )*PRs? (were |are |is |was )?(waiting|to review|needs? review)"
+    flags: i
