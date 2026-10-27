@@ -60,6 +60,7 @@ skills/
   images/SKILL.md
   review/SKILL.md
   feedback/SKILL.md
+  run/SKILL.md
   fix/SKILL.md
   audit/SKILL.md
 scripts/
@@ -125,6 +126,7 @@ CLAUDE.md                article storage conventions (see §5), validator
 - Preview: <command or URL pattern>, optional
 - PR label: seo
 - Human-edited guard: 14 days
+- Deploy: <command>; (production branch: <name>)     ← optional; `run` prints it after a merge
 ```
 
 ### `strategy.md`
@@ -296,6 +298,9 @@ For each entry: `render.js --frame <type>` with the entry as data. Read each PNG
 
 ### `revise` — run by `write`/`refresh` first, or `/seo-agent:revise --pr n`
 Applies the latest `<!-- seo-review round k: needs-work -->` comment to its PR and nothing else: each blocking finding's rule is confirmed, then the reviewer's fix is applied as written (or recorded `not applied` with the rule quoted when the finding is wrong or the fix would break another rule); one-line rule-backed notes are applied, owner-addressed notes skipped; a frame whose text changed is re-rendered under the same name; validator must pass (a fix that breaks it is reverted); commit `seo: revise <id> round k`, push, PR body corrected, reply `<!-- seo-revise round k -->`, `needs-work` removed so `review` runs round k+1. Worktree checkout; owner commits on the branch since the review → hands off. `write`/`refresh` run it before new work and stop after a revision (one unit of work per run).
+
+### `run` — the daily command (built 2026-10-27)
+Reads weekday + state and does one unit of work, first match wins: sweep/review due → `review`; `needs-work` PR → `revise`; PR cap → print merges and stop; Monday → `keywords` (if not this month) → `feedback` (if GSC wired and not this month) → `analysis`; Tue `write`→`refresh`→`fix`, Wed/Thu `refresh`→`write`→`fix`, Fri `fix`→`refresh`→`write`, each falling through when capped or empty. Idempotent within a day: today's `seo:` commits on the default branch (claim / in review / analysis / keywords / feedback) are the ledger, so a second run never repeats a planning or execute step (`--again` overrides). Never reviews in the session that wrote the PR (stops and says "run again"). Prints the owner's merge lines and the `Deploy:` line from the `## SEO agent` block when something merged. `--as <weekday>`, `--dry-run`, `--skip-review`, `--item`.
 
 ### `fix` — Friday, or any day the write/refresh slot is idle (built 2026-10-26)
 Executes the top open `fix` or `link` item. `fix`: one page's mechanical findings from `sitecheck.js` (title/description length, canonical, ogImage via a `cover` frame, alt, broken link/anchor, sitemap). `link`: one sentence with a link per missing hub↔spoke pair in a cluster. Confirms findings still exist, drops owner-fixed ones, human-edited guard per file, validator per touched file, diff guard (fix ≤ 5 deletions/file, link ≤ 2), one PR, `fixes_per_week` cap (3). Items come only from analysis §1c (`sitecheck.js`), never from judgement. `review` checks the hunks against the item's own list.

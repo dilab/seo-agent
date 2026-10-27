@@ -37,6 +37,7 @@ Block (replace the content between the markers if `existing_block`, else append 
 - Preview: <preview_base>/<slug>
 - PR label: seo
 - Human-edited guard: 14 days
+- Deploy: <how main reaches production, when detectable: a `production` branch → `git checkout production && git merge main && git push && git checkout main`; a deploy script in package.json/composer.json → that command; plus the sitemap command when the sitemap is generated on the server> (production branch: <name>)
 <!-- /seo-agent -->
 ```
 

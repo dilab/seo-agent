@@ -55,6 +55,18 @@ The plugin is loaded per session with `--plugin-dir`; nothing is installed into 
 
 What lives where after setup: `CLAUDE.md` (the `## SEO agent` block: article glob, slug rule, image dir, validate command, sitemap, preview URL), `seo/strategy.md` (yours), `seo/voice.md` and `seo/review-rubric.md` (yours, drafted by init), `seo/brand.json` and `seo/frames/` (generated, edit if you like), `seo/backlog.md` / `done.md` / `rejected.md` (the agent's), `seo/data/` (snapshots, spend ledger, plans, SERP context — committed, small), `seo/inventory.json` (regenerated every run).
 
+## Daily — one command
+
+```
+cd ~/Code/recordmover && git status        # clean, on main
+claude --plugin-dir ../seo-agent
+/seo-agent:run
+```
+
+`run` reads the weekday and the repo state and does one unit of work: it sweeps and reviews any PR that is waiting (and revises a `needs-work` one) before anything new; otherwise it takes the day's slot — Monday planning (`keywords` and `feedback` when the month's are due, then `analysis`), Tuesday `write`, Wednesday and Thursday `refresh`, Friday `fix` — falling through to the next type when a slot is capped or empty. It ends with your list: PRs to merge, and the deploy line when something merged. Run it as often as you like: today's `seo:` commits are its ledger, so it never repeats a step — a second run reviews what the first made, a third tells you what is waiting on you. When it opened a PR, run it again in a new session to review it, or let tomorrow's run do it. Weekends: nothing, unless `--as fri`. `--dry-run` shows the decision without acting.
+
+The table below is what `run` does; you only need it to run a step by hand.
+
 ## Running
 
 Every run starts the same way, from the product repo, on the default branch with a clean tree:

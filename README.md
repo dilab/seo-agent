@@ -16,6 +16,7 @@ Without a repo: `cd test && node ../scripts/render.js --contact-sheet --brand se
 /seo-agent:keywords     # discover + rank keyword candidates per cluster (DataForSEO Labs), propose them in seo/strategy.md
 /seo-agent:analysis     # seeded mode: tracked keywords in seo/strategy.md → seo/backlog.md items with briefs
 /seo-agent:write        # top open write item → article in the repo's own format + frame-kit images → one PR labelled seo (--no-pr without gh)
+/seo-agent:run                 # the daily command: review/revise if a PR waits, else the day's slot (Mon analysis, Tue write, Wed–Thu refresh, Fri fix)
 /seo-agent:refresh      # top open refresh item → additive edit of the existing article (keep/add/change plan, 14-day human-edit guard, rewrite guard) → one PR labelled seo
 /seo-agent:review       # fresh session: sweeps merged/closed SEO PRs into done.md/rejected.md, reviews the rest against brief + voice + rubric + rejected.md → label ready (auto-merge per strategy) or needs-work with file:line fixes; escalate after 2 rounds
 /seo-agent:revise       # apply a needs-work review's fixes to its PR (only those), re-validate, push, reply, hand back to review; write/refresh run this first when such a PR exists
