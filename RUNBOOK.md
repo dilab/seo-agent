@@ -71,6 +71,8 @@ Each skill does one unit of work and stops. Run one skill per session; `review` 
 
 ## Weekly loop (caps from `seo/strategy.md`: 1 new article, 2 refreshes, 3 fixes, 3 open PRs)
 
+Caps count calendar weeks, Monday to Sunday: a merge on Friday never blocks the following Tuesday.
+
 | Day | Command | What it does | What you do after |
 |---|---|---|---|
 | Mon | `/seo-agent:analysis` | Briefs any keyword accepted since last time, commits `backlog.md`. With GSC wired it also saves a Search Console snapshot and runs discovery: open items whose page is decaying or in striking distance get a `gsc:` line and a new score; up to `discovery_max_items` (2) pages with a signal and no item get a refresh brief. Spend ≤ $0.50. Says `backlog is current` when nothing changed. | Read the top of `seo/backlog.md`. Delete an item you do not want before Tuesday. |

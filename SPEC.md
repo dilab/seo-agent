@@ -136,7 +136,7 @@ CLAUDE.md                article storage conventions (see §5), validator
 ## Clusters            (hub + spokes, target keyword each, priority 1–3)
 ## Competitors         (domains for gap analysis)
 ## Never write about   (hard exclusions, enforced at scoring)
-## Caps                 new_per_week: 1, refresh_per_week: 2, fixes_per_week: 3, open_prs_max: 3
+## Caps                 new_per_week: 1, refresh_per_week: 2, fixes_per_week: 3, open_prs_max: 3   (per calendar week, Mon–Sun; changed from a rolling 7 days on 2026-10-27 after a Friday merge blocked the next Tuesday)
 ## Auto-merge           [] | [refresh] | [refresh, write]
 ## Tracked keywords    (list; analysis may propose additions via PR)
 ```

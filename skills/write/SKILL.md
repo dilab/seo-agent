@@ -19,7 +19,7 @@ Arguments: `--item B-nnn` (pick this item instead of the top one), `--no-pr` (st
 2. `/seo/strategy.md`, `/seo/voice.md`, `/seo/brand.json`, `/seo/frames/`, `/seo/backlog.md` exist; `CLAUDE.md` has the `## SEO agent` block. Missing → name the skill that creates it (`init`, `brand`, `frames`, `analysis`).
 3. From `## Caps`: `new_per_week` (1), `open_prs_max` (3), `word_range`. From the block: `Articles` glob and format, `Title/description`, `URL slug`, `Images`, `Validate`, `Sitemap`, `Preview`, `PR label`.
 4. `gh auth status` works → PR mode; else `--no-pr` mode and say so.
-5. **Caps.** Open SEO PRs: `gh pr list --label seo --state open --json number` (no `gh` → count backlog items with `in-review`); ≥ `open_prs_max` → stop `PR cap reached`. New this week: backlog `write` items with a `claimed:` date in the last 7 days plus `done.md` write lines dated in the last 7 days; ≥ `new_per_week` → stop `weekly new-article cap reached`.
+5. **Caps.** Open SEO PRs: `gh pr list --label seo --state open --json number` (no `gh` → count backlog items with `in-review`); ≥ `open_prs_max` → stop `PR cap reached`. New this week: backlog `write` items with a `claimed:` date in the current week plus `done.md` write lines dated in the current week; ≥ `new_per_week` → stop `weekly new-article cap reached`. **Week** = the calendar week, Monday 00:00 to Sunday, local time (`date -v-monday` on macOS / `date -d 'last monday'` on Linux gives the start when today is not Monday; today itself when it is). Last week's merges never count against this week.
 6. `node $P/scripts/inventory.js --root .` (refreshes `seo/inventory.json`; the siblings and link targets come from it).
 
 ## 1. Select and claim

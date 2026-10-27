@@ -16,7 +16,7 @@ Arguments: `--item B-nnn`, `--no-pr`, `--revise <pr>`, `--no-revise`.
 ## 0. Preconditions — stop on the first failure, print why
 
 1. Product repo root; `git status --porcelain` empty; on the default branch. Dirty → print the files and stop; never stash or discard.
-2. `/seo/strategy.md`, `/seo/voice.md`, `/seo/backlog.md`, `CLAUDE.md` with the `## SEO agent` block. From `## Caps`: `fixes_per_week` (default 3, counts `fix` + `link` items claimed or done in the last 7 days), `open_prs_max`. From the block: `Articles`, `Validate`, `PR label`, `Human-edited guard` days, `Images` dir rule.
+2. `/seo/strategy.md`, `/seo/voice.md`, `/seo/backlog.md`, `CLAUDE.md` with the `## SEO agent` block. From `## Caps`: `fixes_per_week` (default 3, counts `fix` + `link` items claimed or done in the current calendar week, Monday to Sunday — never last week's), `open_prs_max`. From the block: `Articles`, `Validate`, `PR label`, `Human-edited guard` days, `Images` dir rule.
 3. `gh auth status` → PR mode, else `--no-pr` mode.
 4. Caps: open SEO PRs ≥ `open_prs_max` → `PR cap reached`; fixes this week ≥ `fixes_per_week` → `weekly fix cap reached`.
 5. `node $P/scripts/inventory.js --root .` (refresh the inventory).
