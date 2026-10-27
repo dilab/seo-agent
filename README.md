@@ -55,6 +55,8 @@ node scripts/dfs.js check
 ```
 `analysis` first runs `scripts/inventory.js`, which writes `seo/inventory.json` (every public page: title, headings, word count, last commit) from the articles glob in CLAUDE.md, Laravel `Route::view` entries and `public/sitemap.xml`. Try it alone with `node ../seo-agent/scripts/inventory.js --root .` inside the product repo.
 
+`node scripts/lifted.js --article <article> --serp <serp_context.json>` reports passages of 9+ words and H2s identical to the top ranking pages, using the `shingles` fingerprints `dfs.js parse` stores (hashes of 8-word runs; no competitor text is kept). `write` and `refresh` run it before the PR, `review` blocks on it. Test: `node test/lifted/run.js`.
+
 `node scripts/validate-article.js --file <article>` checks one article before a PR (title/description lengths, route and canonical, internal links and anchors, images and alt text, headings, word range from `## Caps`, banned words from `seo/voice.md`, placeholders; sitemap and hub link as warnings). Exit 0/1 with a JSON report; `--words-warn` downgrades the word-range check for legacy pages.
 
 `analysis` needs `seo/strategy.md` with `## Clusters`, `## Never write about`, `## Caps` and `## Tracked keywords` (contract in `skills/analysis/SKILL.md`). Each analysis keyword costs about one to two cents of DataForSEO credit (SERP, Labs overview, five page parses); a keywords run over five clusters is roughly $0.50–1.00.

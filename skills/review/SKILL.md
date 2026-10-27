@@ -56,7 +56,7 @@ Work the list; every finding gets `file:line` (branch line numbers), what is wro
 6. Frames: for every image the PR adds, the text on the frame (title, rows, steps, value, quote) appears in the article body; alt text describes the content and matches the frame; the file sits in the article's image folder; `<img>` has `width`, `height`, `loading="lazy"`, `decoding="async"` where the siblings do; the hero is the `ogImage`. An image not referenced by the article, or a reference to a missing file, is blocking. A hero with an empty placeholder box is blocking.
 7. FAQ: every FAQ question in the body has the same text in the JSON-LD and vice versa; JSON-LD built the way the siblings build it (`json_encode` or the Markdown equivalent), not hand-written.
 8. PR body honesty: the `Checks` line's words, link counts and image counts agree with the validator's `stats` (±5 words); every "What changed" bullet is true of the diff; nothing the diff does is missing from the bullets.
-9. Nothing lifted: no H2 identical to a heading in `serp_context`'s top pages; no sentence of 12+ words identical to a snippet there. Facts yes, sentences no.
+9. Nothing lifted: `node $P/scripts/lifted.js --article <file> --serp <serp_context>` — every entry in `matches` (9+ identical words in a row against a top page) or `heading_matches` (an H2 identical to a heading there) is blocking; quote the `excerpt` and the `url`. Facts yes, sentences no. A `warning` means the context predates fingerprints: compare the H2s to `headings` by hand and say so in the notes.
 
 **Brief and intent (blocking unless noted)**
 10. The keyword (and `also_targets`) is answered outright in the first screen — quick answer or hero subhead — and appears in title and H1 (or a natural variant).

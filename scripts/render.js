@@ -130,12 +130,14 @@ async function renderHtml(html, w, h, scale, outPath, framesDir) {
 
 async function contactSheet(brand, framesDir, outPath, scale) {
   const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'frames-'));
+  // Product-neutral sample copy: the sheet shows the kit's typography, colours and layout, not a claim about any product.
+  const product = (brand && brand.product) || 'Your product';
   const samples = {
-    hero: { eyebrow: 'Guide', title: 'How long does Zoom keep cloud recordings?', description: 'Retention limits by plan, what happens at the cap, and how to keep every recording.' },
-    stat: { eyebrow: 'Storage', value: '5 GB', label: 'Included cloud recording storage on a Pro licence', source: 'zoom.us/pricing' },
-    compare: { eyebrow: 'Plans', title: 'Cloud recording storage by plan', columns: ['Pro', 'Business', 'Enterprise'], rows: [['Storage', '5 GB', '10 GB', 'Unlimited'], ['Retention', 'Manual', 'Manual', 'Policy'], ['Export', 'One by one', 'One by one', 'Bulk']] },
-    steps: { eyebrow: 'Setup', title: 'Back up recordings in three steps', steps: ['Connect your Zoom account', 'Choose a Drive or Dropbox folder', 'Set a retention rule'] },
-    quote: { text: 'Zoom deletes what you don’t move. Make moving automatic.', attribution: 'RecordMover docs' },
+    hero: { eyebrow: 'Guide', title: 'How the frame kit renders a hero', description: `Sample copy for the ${product} frame kit: title, one-line description, logo lock-up and the brand motif behind it.` },
+    stat: { eyebrow: 'Sample stat', value: '30 days', label: 'A single number with its label and source line', source: 'source goes here' },
+    compare: { eyebrow: 'Sample table', title: 'A three-column comparison', columns: ['Plan A', 'Plan B', 'Plan C'], rows: [['Row one', 'Yes', 'Yes', 'No'], ['Row two', '10', '50', '500'], ['Row three', 'Manual', 'Scheduled', 'Automatic']] },
+    steps: { eyebrow: 'Sample steps', title: 'A procedure in three steps', steps: ['First step, one short line', 'Second step, one short line', 'Third step, one short line'] },
+    quote: { text: 'A pull quote frame: one sentence the article wants remembered.', attribution: `${product} docs` },
   };
   const rendered = [];
   for (const [frame, data] of Object.entries(samples)) {

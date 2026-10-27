@@ -69,6 +69,7 @@ scripts/
   discover.js              GSC snapshot → refresh candidates (no network)
   sitecheck.js             validator over every article + hub↔spoke links → fix/link findings (no network)
   crawl.js                 live-site crawler for audit: links, redirects, meta, canonical, noindex, sitemap, orphans, CWV
+  lifted.js                article vs serp_context fingerprints (parse's `shingles`): lifted passages and headings → review check 9, write/refresh self-check
   dfs.js                   DataForSEO REST client: serp, overview, suggestions, ideas, related, ranked, competitors, serp-competitors, parse, spend
   inventory.js             repo → seo/inventory.json (every public page); --detect for init
   render.js                HTML → PNG/WebP (frame kit renders)
@@ -419,6 +420,7 @@ Owner-only setup steps per product (cannot be automated):
 11. Manual week; observe subscription usage; set cadence
 13. `fix` skill + `sitecheck.js` + analysis §1c — built 2026-10-26; RecordMover's first sitecheck: 2 pages with 204/216-char descriptions and no canonical/ogImage, 3 missing links in download-recover, /where-do-zoom-recordings-go orphaned
 12. Discovery mode in `analysis` — built 2026-10-26: `discover.js` + §1b; first live run due Monday 2026-11-02 (annotates B-002/B-005/B-006/B-007 on RecordMover's current data)
+15. Hardening — 2026-10-27: `parse` stores `shingles` fingerprints and `lifted.js` makes review check 9 real (write/refresh self-check first); `init` run on the second product, SendReplay (Laravel, no articles yet): detection, brand (from landing.css), frames and bookkeeping all worked; fixes that came out of it — product-neutral contact-sheet copy in render.js, `inventory.js` reads the glob inside an `Articles: (none yet — …)` line, `write` knows the first-article case
 14. Eval suite — built 2026-10-27: `evals/` (10 cases over run/review/revise/write/fix guards, fixture product + stand-in gh, deterministic graders + one LLM judge per case); `npm run eval` after any SKILL.md edit
 12. Scheduling — built 2026-10-27: `scripts/schedule.sh` (runner + launchd installer, fixture-tested with a fake `claude`, live `--dry-run` verified on RecordMover) + `schedule` skill; `run` now ends with `next: again|tomorrow`. Owner installs after the manual week
 13. `feedback` — built 2026-10-25; `audit` — built 2026-10-27 (crawl.js + audit skill + quarterly launchd entry + fix-skill live confirmation)

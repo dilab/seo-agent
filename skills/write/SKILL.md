@@ -7,7 +7,7 @@ description: Take the top open `write` item from /seo/backlog.md, draft the arti
 
 You produce one article per run and stop. The brief in the backlog item is the spec; `voice.md` is the style; existing articles are the skeleton; `validate-article.js` is the gate; the PR is the only output the world sees. You never edit an existing article (that is `refresh`), never touch anything outside the files listed in §5, and never merge.
 
-Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/{inventory,validate-article,render}.js`. Skills you follow inline: `${CLAUDE_PLUGIN_ROOT}/skills/images/SKILL.md`, `${CLAUDE_PLUGIN_ROOT}/skills/revise/SKILL.md`. Set `P=${CLAUDE_PLUGIN_ROOT}`.
+Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/{inventory,validate-article,lifted,render}.js`. Skills you follow inline: `${CLAUDE_PLUGIN_ROOT}/skills/images/SKILL.md`, `${CLAUDE_PLUGIN_ROOT}/skills/revise/SKILL.md`. Set `P=${CLAUDE_PLUGIN_ROOT}`.
 
 Arguments: `--item B-nnn` (pick this item instead of the top one), `--no-pr` (stop after pushing the branch; also the automatic mode when `gh` is missing), `--revise <pr>` (only revise that PR, then stop), `--no-revise` (skip the revision pass).
 
@@ -17,7 +17,7 @@ Arguments: `--item B-nnn` (pick this item instead of the top one), `--no-pr` (st
 
 1. Product repo root; `git status --porcelain` is empty; current branch is the default branch. A dirty tree means the owner has work in progress: print the file list and stop. Never commit, stash, or discard those changes yourself, even when they are `seo/` planning files — the only commits this skill makes are the claim, the article, and the in-review status.
 2. `/seo/strategy.md`, `/seo/voice.md`, `/seo/brand.json`, `/seo/frames/`, `/seo/backlog.md` exist; `CLAUDE.md` has the `## SEO agent` block. Missing → name the skill that creates it (`init`, `brand`, `frames`, `analysis`).
-3. From `## Caps`: `new_per_week` (1), `open_prs_max` (3), `word_range`. From the block: `Articles` glob and format, `Title/description`, `URL slug`, `Images`, `Validate`, `Sitemap`, `Footer` (optional), `Preview`, `PR label`.
+3. From `## Caps`: `new_per_week` (1), `open_prs_max` (3), `word_range`. From the block: `Articles` glob and format, `Title/description`, `URL slug`, `Images`, `Validate`, `Sitemap`, `Footer` (optional), `Preview`, `PR label`. An `Articles:` line that reads `(none yet — new guides go in <glob>)` means this is the product's first article: the glob inside the parenthesis is where it goes (create the folder), the skeleton comes from the closest existing page (a legal or documentation view for a Blade product, `templates/article.md` for Markdown), and in §7 you replace that line with the plain glob — `CLAUDE.md` is then part of the PR.
 4. `gh auth status` works → PR mode; else `--no-pr` mode and say so.
 5. **Caps.** Open SEO PRs: `gh pr list --label seo --state open --json number` (no `gh` → count backlog items with `in-review`); ≥ `open_prs_max` → stop `PR cap reached`. New this week: backlog `write` items with a `claimed:` date in the current week plus `done.md` write lines dated in the current week; ≥ `new_per_week` → stop `weekly new-article cap reached`. **Week** = the calendar week, Monday 00:00 to Sunday, local time (`date -v-monday` on macOS / `date -d 'last monday'` on Linux gives the start when today is not Monday; today itself when it is). Last week's merges never count against this week.
 6. `node $P/scripts/inventory.js --root .` (refreshes `seo/inventory.json`; the siblings and link targets come from it).
@@ -72,6 +72,8 @@ Follow `$P/skills/images/SKILL.md` with the plan from §3 and `--out <Images dir
 `<Validate command from the block> --file <article>`; for Markdown the same script. Must exit 0 with no `fails`. Fix and re-run, at most 3 passes; the usual fixes are description length, a banned word, a missing hub link, a route name typo, word count. Still failing → commit what exists on the branch, do **not** open a PR, set the backlog item to `- status: blocked:<reason>` on the default branch, and report.
 
 Also run the repo's own checks if the block names any (`Validate` may list more than one command).
+
+Then `node $P/scripts/lifted.js --article <article> --serp <serp_context>`: any `matches` or `heading_matches` → rewrite those sentences or headings in your own words and run it again (it counts as one of the 3 passes). Review runs the same check and blocks on it.
 
 ## 7. Commit, push, PR
 

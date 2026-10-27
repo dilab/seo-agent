@@ -255,6 +255,7 @@ const EXTRACT = {
       ? md.replace(/```[\s\S]*?```/g, ' ').replace(/!\[.*?\]\(.*?\)/g, ' ').replace(/\[(.*?)\]\(.*?\)/g, '$1').replace(/[#>*_|`-]+/g, ' ')
       : [...(pc.main_topic || []), ...(pc.secondary_topic || [])].flatMap(t => [...(t.primary_content || []), ...(t.secondary_content || [])]).map(c => c.text || '').join(' ');
     const word_count = text.split(/\s+/).filter(w => /\w/.test(w)).length;
+    const shingles = shingleHashes(text, 8, 3000); // fingerprint for the lifted-sentence check (scripts/lifted.js); no page text is stored
 
     const tables = md ? (md.match(/^\s*\|?\s*:?-{3,}/gm) || []).length : (pc.table_content || []).length;
     const head = (md || text).slice(0, 4000);
@@ -264,7 +265,7 @@ const EXTRACT = {
 
     return {
       url, status_code: item.status_code, fetch_time: item.fetch_time, title,
-      headings: headings.slice(0, 60), word_count, tables, date_hints: dateHints, years,
+      headings: headings.slice(0, 60), word_count, shingles, tables, date_hints: dateHints, years,
       format_hints: {
         numbered_list: /^\s*\d+\.\s/m.test(md), has_table: tables > 0, faq: /\bFAQ|frequently asked|\?\s*$/im.test(md),
         steps: headings.filter(h => /^step\s*\d|^\d+[.)]\s/i.test(h.text)).length,
@@ -273,6 +274,17 @@ const EXTRACT = {
     };
   },
 };
+
+// ---------- fingerprints ----------
+
+// Hashes of every run of `n` consecutive words (lowercased, punctuation stripped): enough to tell whether a
+// sentence of ours appears verbatim on a page, without keeping the page's text. First 10 hex chars of sha1.
+function shingleHashes(text, n = 8, cap = 3000) {
+  const words = String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  const out = new Set();
+  for (let i = 0; i + n <= words.length && out.size < cap; i++) out.add(require('crypto').createHash('sha1').update(words.slice(i, i + n).join(' ')).digest('hex').slice(0, 10));
+  return [...out];
+}
 
 // ---------- Labs normaliser ----------
 
@@ -411,4 +423,5 @@ function usage(msg) {
   process.exit(2);
 }
 
-main().catch(e => { process.stdout.write(JSON.stringify({ error: String(e.message || e) }) + '\n'); process.exit(1); });
+if (require.main === module) main().catch(e => { process.stdout.write(JSON.stringify({ error: String(e.message || e) }) + '\n'); process.exit(1); });
+module.exports = { shingleHashes };

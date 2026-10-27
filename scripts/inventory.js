@@ -32,8 +32,11 @@ async function main() {
 
   // 1. articles glob from CLAUDE.md
   const claude = readIf(path.join(ROOT, 'CLAUDE.md'));
-  const artLine = /^-\s*Articles:\s*([^,\n]+)/m.exec(claude || '');
-  const articlesGlob = artLine ? artLine[1].trim() : null;
+  const artLine = /^-\s*Articles:\s*([^\n]+)/m.exec(claude || '');
+  // `Articles: <glob>, format: …` normally; `Articles: (none yet — new guides go in <glob>), format: …` before the first article
+  let articlesGlob = artLine ? artLine[1].trim() : null;
+  if (articlesGlob && /^\(none yet/i.test(articlesGlob)) { const g = /([\w./-]+\*[\w./*-]*)/.exec(articlesGlob); articlesGlob = g ? g[1] : null; }
+  else if (articlesGlob) articlesGlob = articlesGlob.split(',')[0].trim();
   const articleFiles = articlesGlob ? globFiles(ROOT, articlesGlob) : [];
 
   // 2. Laravel routes: Route::view('slug', 'dot.view')

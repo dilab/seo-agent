@@ -8,6 +8,6 @@
   },
   "scripts": {
     "eval": "claude plugin eval . --trust-plugin --scaffold --allow-tools Bash Edit Write MultiEdit --ablation none --no-publish --runs 1",
-    "test": "bash test/schedule/run.sh && node test/sitecheck/run.js"
+    "test": "bash test/schedule/run.sh && node test/sitecheck/run.js && node test/crawl/run.js && node test/lifted/run.js"
   }
 }

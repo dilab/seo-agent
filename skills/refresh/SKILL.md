@@ -7,7 +7,7 @@ description: Take the top open `refresh` item from /seo/backlog.md, improve the 
 
 A refresh is additive surgery on a page the owner already published. The brief says what the page lacks; `voice.md` says how the site speaks; the page's own history says what you may touch. You add sections, extend thin ones, answer the questions the SERP asks, tighten the meta, and leave the URL, the route, the owner's facts and the owner's sentences in place wherever they still hold. You never create a page (that is `write`), never touch a second article, never merge.
 
-Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/{inventory,validate-article,render}.js`. Skills you follow inline: `${CLAUDE_PLUGIN_ROOT}/skills/images/SKILL.md`, `${CLAUDE_PLUGIN_ROOT}/skills/revise/SKILL.md`. Set `P=${CLAUDE_PLUGIN_ROOT}`.
+Scripts: `${CLAUDE_PLUGIN_ROOT}/scripts/{inventory,validate-article,lifted,render}.js`. Skills you follow inline: `${CLAUDE_PLUGIN_ROOT}/skills/images/SKILL.md`, `${CLAUDE_PLUGIN_ROOT}/skills/revise/SKILL.md`. Set `P=${CLAUDE_PLUGIN_ROOT}`.
 
 Arguments: `--item B-nnn` (pick this item instead of the top one), `--no-pr` (stop after pushing the branch; also the automatic mode when `gh` is missing), `--revise <pr>` (only revise that PR, then stop), `--no-revise` (skip the revision pass).
 
@@ -73,6 +73,8 @@ Follow `$P/skills/images/SKILL.md` with the plan's new frames and `--out <Images
 ## 6. Validate and fix
 
 `<Validate command from the block> --file <article>`. Must exit 0 with no `fails`. Fix and re-run, at most 3 passes. Still failing → commit what exists on the branch, do **not** open a PR, set `- status: blocked:<reason>` on the default branch, report. Also run any other command the `Validate` line names.
+
+Then `node $P/scripts/lifted.js --article <article> --serp <serp_context>`: any `matches` or `heading_matches` in the text you added → rewrite in your own words and run it again (one of the 3 passes); a match inside the owner's untouched text is reported in the PR body, not rewritten. Review runs the same check.
 
 If the owner's page failed the validator *before* your edit (an over-long description, a missing canonical), fixing it is part of the refresh; say so in the PR body.
 
