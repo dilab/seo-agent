@@ -1,6 +1,6 @@
 ---
 name: run
-description: The one daily command. Reads the weekday and the repo state (open SEO PRs and their labels, caps, the backlog, what ran this month) and does exactly one unit of work — review/revise if a PR is waiting, else the day's slot (Mon analysis, Tue write, Wed–Thu refresh, Fri fix) with fall-through when a slot is capped or empty — then prints what the owner has to do (merge, deploy). Safe to run any number of times a day: today's `seo:` commits on the default branch are its ledger, so a step already done today is never repeated — a second run reviews what the first made, a third says what is waiting on the owner.
+description: The one daily command. Reads the weekday and the repo state (open SEO PRs and their labels, caps, the backlog, what ran this month) and does exactly one unit of work — review/revise if a PR is waiting, else the day's slot (Mon analysis, Tue write, Wed–Thu refresh, Fri fix) with fall-through when a slot is capped or empty — then prints what the owner has to do (merge, deploy). Safe to run any number of times a day: today's `seo:` commits on the default branch are its ledger, so a step already done today is never repeated — a second run reviews what the first made, a third says what is waiting on the owner. Unattended: `scripts/schedule.sh` (see the `schedule` skill) calls it in fresh sessions until it says `next: tomorrow`.
 ---
 
 # run — decide and do today's unit of work
@@ -46,7 +46,7 @@ Product repo root; `git status --porcelain` empty; on the default branch; `CLAUD
 
 - `today: <DAY> — did: <skill> <id/PR>` or `did: nothing (<reason>)`; `already today: <ledger lines>` when the ledger is non-empty
 - **You**: `ready` PRs as `gh pr merge <n> --squash` lines (and `escalate` PRs to decide; `needs-work` PRs that will be revised next run); on Friday, or any day a merge happened since the last deploy (`git log origin/<production branch>..origin/<default>` non-empty when the block names a production branch): the deploy line from the `## SEO agent` block or the runbook, and the sitemap command
-- **Next**: `run again in a new session to review PR #n` when this session opened a PR; otherwise `tomorrow`
+- **Next** — the last line, one of exactly these forms (the headless runner `scripts/schedule.sh` loops on `next: again` and stops on anything else): `next: again — review PR #n` when this session opened or revised a PR; `next: again — revise PR #n` when it labelled one `needs-work`; `next: tomorrow` otherwise, followed by what the owner is waiting on, if anything
 - caps after this run (open PRs, new/refresh/fix this week); month markers (keywords, feedback)
 
 ## Hard rules

@@ -38,7 +38,7 @@ GitHub PR  ──►  seo-agent:review (fresh session)  ──►  owner merges 
 Dashboard artifact (agent writes rows at end of each run)
 ```
 
-Runtime: claude.ai **scheduled tasks** with the product repo attached (each firing is a fresh session). Fallback: cron on a server with `claude -p`. Local development: `claude --plugin-dir ../seo-agent` inside the product repo.
+Runtime: the owner's Mac, a launchd job per product running `scripts/schedule.sh run <product>` (built 2026-10-27): each firing chains fresh `claude -p "/seo-agent:run"` sessions until the run says `next: tomorrow`. Later option: claude.ai scheduled tasks with the product repo attached, once this plugin has a remote and the secrets live in that environment. Local development: `claude --plugin-dir ../seo-agent` inside the product repo.
 
 ---
 
@@ -62,6 +62,7 @@ skills/
   feedback/SKILL.md
   run/SKILL.md
   fix/SKILL.md
+  schedule/SKILL.md        install/status/test/log/uninstall the launchd job
   audit/SKILL.md
 scripts/
   gsc.js                   Search Console → JSON
@@ -72,12 +73,15 @@ scripts/
   render.js                HTML → PNG/WebP (frame kit renders)
   validate-article.js      frontmatter, links, word count, image refs
   dashboard.js             write rows to the dashboard artifact DB
+  schedule.sh              headless runner (fresh sessions until `next: tomorrow`, log, notification) + launchd installer
 templates/
   frames/                  base frame templates, parameterised by brand.json
     _base.css, hero.html, stat.html, compare.html, steps.html, quote.html
   contact-sheet.html       renders all frames with dummy content for review
   article.md               Markdown article skeleton (templated products clone an existing article)
   pr-body.md               PR body (§8)
+  env.example              secrets file template → ~/.config/seo-agent/env (never in a repo)
+  runner-settings.json     least-privilege permission allowlist for unattended sessions
 config.md                  dashboard URL, default caps, default rubric
 SETUP.md                   owner-facing onboarding steps
 SPEC.md                    this file
@@ -354,15 +358,14 @@ Owner reviews on GitHub mobile: read bullets, glance at images, open the preview
 
 ## 10. Scheduling (per product, local time, staggered by product)
 
-| Task | Schedule | Prompt |
-|---|---|---|
-| analysis | Mon 06:00 | Run `/seo-agent:analysis` |
-| execute | Tue/Wed/Thu 06:00 | Run the top backlog item with `/seo-agent:refresh` or `/seo-agent:write`. Exit if open SEO PRs ≥ cap. |
-| review | Tue/Wed/Thu 12:00 | Run `/seo-agent:review` |
-| feedback | 1st 07:00 | Run `/seo-agent:feedback` |
-| audit | 1st Jan/Apr/Jul/Oct | Run `/seo-agent:audit` |
+One firing per weekday morning (default 07:00) is the whole schedule, because `run` already encodes the weekly table (§7 `run`) and reads what it did from git. `scripts/schedule.sh run <product>`:
 
-Created by `init` in paused state; owner unpauses after the manual test week. Size cadence against subscription usage observed during that week.
+1. source `~/.config/seo-agent/env` (secrets, proxy); skip weekends; take a lock
+2. `git fetch`; abort on a dirty tree (exit 3) or no network (exit 4); switch to the default branch; `pull --ff-only`
+3. `claude -p "/seo-agent:run" --plugin-dir <plugin> --settings templates/runner-settings.json --output-format json`, in a fresh session, repeated while the result's last line is `next: again` (opened/revised a PR → review it; labelled `needs-work` → revise it), at most `SEO_AGENT_MAX_SESSIONS` (4) per firing, each under a wall-clock timeout
+4. append every session's report to `~/Library/Logs/seo-agent/<product>-<date>.log`; post a macOS notification with the `did:` line and whether the owner has to act
+
+`schedule.sh install <product> --at HH:MM --days 1-5` writes `~/Library/LaunchAgents/com.seo-agent.<product>.plist` (captures the installing shell's `PATH`; `SEO_AGENT_QUIET=1`), `status`/`log`/`uninstall` manage it; the `schedule` skill wraps these. A Mac asleep at the hour runs the job on wake; off → the day is skipped and the next firing catches up. Permissions are the allowlist in `templates/runner-settings.json` (git, gh, node, php artisan, read-only shell tools, file edits; `rm`, force-push, `sudo` denied), never a blanket bypass. Owner installs after the manual test week; monthly `feedback` and Monday planning need no extra entries since `run` chains them. `audit` (when built) gets its own quarterly entry.
 
 ---
 
@@ -382,17 +385,20 @@ Not a control panel. Merge/close happens on GitHub.
 ## 12. Secrets (scheduled task environment / local `.env`)
 
 ```
-GSC_SA_JSON          service-account JSON (one line)
+GSC_SA_FILE or GSC_SA_JSON   service-account key (path, or JSON on one line)
 DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD
+https_proxy                  optional, for gsc.js
 GEO_MONITOR_URL / GEO_MONITOR_TOKEN   optional
 DASHBOARD_URL        from config.md
 ```
+
+For the launchd runner these live in `~/.config/seo-agent/env` (template `templates/env.example`, created by `schedule.sh env` with mode 600) because launchd does not read the shell profile.
 
 Owner-only setup steps per product (cannot be automated):
 1. Add the service-account email to the product's GSC property
 2. Put secrets in the environment
 3. Read and edit `strategy.md` after `init`
-4. Unpause scheduled tasks
+4. Install the morning job (`/seo-agent:schedule`) after the manual test week
 
 ---
 
@@ -411,7 +417,7 @@ Owner-only setup steps per product (cannot be automated):
 11. Manual week; observe subscription usage; set cadence
 13. `fix` skill + `sitecheck.js` + analysis §1c — built 2026-10-26; RecordMover's first sitecheck: 2 pages with 204/216-char descriptions and no canonical/ogImage, 3 missing links in download-recover, /where-do-zoom-recordings-go orphaned
 12. Discovery mode in `analysis` — built 2026-10-26: `discover.js` + §1b; first live run due Monday 2026-11-02 (annotates B-002/B-005/B-006/B-007 on RecordMover's current data)
-12. Scheduled tasks unpaused
+12. Scheduling — built 2026-10-27: `scripts/schedule.sh` (runner + launchd installer, fixture-tested with a fake `claude`, live `--dry-run` verified on RecordMover) + `schedule` skill; `run` now ends with `next: again|tomorrow`. Owner installs after the manual week
 13. `feedback`, `audit`
 14. Dashboard artifact + `dashboard.js`
 15. Marketplace registration; onboard product two

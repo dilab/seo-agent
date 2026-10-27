@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Fake `claude` for test/schedule/run.sh: emits the JSON shape of `claude -p --output-format json`.
+# $FAKE_STATE counts calls; call 1 → next: again, call 2 → next: tomorrow; FAKE_FAIL=1 → is_error.
+n=0; [ -f "$FAKE_STATE" ] && n=$(cat "$FAKE_STATE"); n=$((n+1)); echo "$n" >"$FAKE_STATE"
+printf '%s\n' "$*" >>"$FAKE_STATE.args"
+if [ "${FAKE_FAIL:-0}" = 1 ]; then
+  printf '{"type":"result","subtype":"error","is_error":true,"result":"boom","num_turns":1,"session_id":"s%s"}\n' "$n"; exit 0
+fi
+if [ "$n" = 1 ]; then
+  printf '{"type":"result","subtype":"success","is_error":false,"result":"today: tue — did: write B-008 → PR #9\\n**You**: nothing yet\\nnext: again — review PR #9","num_turns":40,"total_cost_usd":0.5,"session_id":"s1"}\n'
+else
+  printf '{"type":"result","subtype":"success","is_error":false,"result":"today: tue — did: review PR #9 → ready\\n**You**: gh pr merge 9 --squash\\nnext: tomorrow","num_turns":20,"total_cost_usd":0.2,"session_id":"s2"}\n'
+fi

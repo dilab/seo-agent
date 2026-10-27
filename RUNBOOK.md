@@ -34,6 +34,7 @@
    - `node ~/Code/seo-agent/scripts/gsc.js check` must print `ok: true` with the property and permission. Data lags 3 days; every window ends at today − 3.
    - `gsc.js` honours `https_proxy` / `HTTPS_PROXY` (HTTP CONNECT proxies only; a `socks://` value is ignored), since Node's own `fetch` does not.
 7. Optional: `alias seo='claude --plugin-dir ~/Code/seo-agent'` so a session is `cd ~/Code/<product> && seo`.
+8. For the hands-off job (below), the same credentials go in `~/.config/seo-agent/env` instead of (or as well as) the shell profile: launchd does not read your profile. `~/Code/seo-agent/scripts/schedule.sh env` creates the file.
 
 The plugin is loaded per session with `--plugin-dir`; nothing is installed into Claude Code globally. To update it: `cd ~/Code/seo-agent && git pull && npm install && claude plugin validate .`.
 
@@ -66,6 +67,19 @@ claude --plugin-dir ../seo-agent
 `run` reads the weekday and the repo state and does one unit of work: it sweeps and reviews any PR that is waiting (and revises a `needs-work` one) before anything new; otherwise it takes the day's slot — Monday planning (`keywords` and `feedback` when the month's are due, then `analysis`), Tuesday `write`, Wednesday and Thursday `refresh`, Friday `fix` — falling through to the next type when a slot is capped or empty. It ends with your list: PRs to merge, and the deploy line when something merged. Run it as often as you like: today's `seo:` commits are its ledger, so it never repeats a step — a second run reviews what the first made, a third tells you what is waiting on you. When it opened a PR, run it again in a new session to review it, or let tomorrow's run do it. Weekends: nothing, unless `--as fri`. `--dry-run` shows the decision without acting.
 
 The table below is what `run` does; you only need it to run a step by hand.
+
+## Hands-off — the morning job
+
+When a week of `run` by hand has gone the way you expect, let the Mac fire it:
+
+```
+~/Code/seo-agent/scripts/schedule.sh env           # creates ~/.config/seo-agent/env (mode 600); fill DATAFORSEO_*, GSC_SA_FILE, https_proxy
+cd ~/Code/recordmover && claude --plugin-dir ../seo-agent
+/seo-agent:schedule --at 07:00                      # installs ~/Library/LaunchAgents/com.seo-agent.recordmover.plist, weekdays
+/seo-agent:schedule test                            # one real headless --dry-run through the job's exact flags
+```
+
+Each firing fetches, refuses a dirty tree, switches to `main`, then calls `claude -p "/seo-agent:run"` in a fresh session and repeats while the run ends with `next: again` — so Tuesday's firing writes, reviews, revises and re-reviews on its own (up to 4 sessions) and stops with the merge line for you. You still merge and deploy. Nothing is lost on a day the Mac is off: the ledger is git, and the next firing catches up. Asleep at the hour → runs on wake. Logs: `~/Library/Logs/seo-agent/<product>-<date>.log` (`/seo-agent:schedule log`), a notification with the `did:` line, `/seo-agent:schedule status` for launchd state and the last exit code (1 session failed, 3 dirty or diverged repo, 4 offline). Unattended sessions run with the allowlist in `~/Code/seo-agent/templates/runner-settings.json` (git, gh, node, php artisan, read-only shell, file edits; no `rm`, no force-push); a denied tool shows in the log — widen the file on purpose, not the flags. The job captures your `PATH` at install time: re-run `/seo-agent:schedule` after moving `claude`, `node`, `gh` or `php`. Second product: install again from that repo; stagger `--at`.
 
 ## Running
 
