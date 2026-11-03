@@ -211,12 +211,13 @@ function bannedTerms(v) {
   const out = [];
   for (const line of sec[1].split('\n')) {
     if (!/^\s*-\s/.test(line)) continue;
-    if (/\bNote:|not banned|never appear|none appear|strategy\.md/i.test(line) && !/"/.test(line)) continue;
+    // a prose note ("None of the words above appear on the existing pages (checked welcome, pricing, …)") is not a term list
+    if (/\bNote:|not banned|never appear|none appear|none of the|nothing was removed|do(?:es)? not appear|checked\b.*\d{4}|strategy\.md/i.test(line) && !/"/.test(line)) continue;
     // a quoted term followed by a qualifier ("simply" before a multi-step task, "X" stated as fact) is contextual: warn, don't fail
     const quoted = [...line.matchAll(/"([^"]+)"(\s*(?:before|when|as|stated|unless|without|in|for|after)\b[^,;]*)?/g)]
       .filter(m => !/…|\.\.\./.test(m[1]) && m[1].split(' ').length <= 6)
       .map(m => ({ q: m[1], context: m[2] ? m[2].trim() : null }));
-    const bare = line.replace(/"[^"]*"/g, '').replace(/^\s*-\s*/, '').replace(/\([^)]*\)$/, '').split(/,|;/).map(s => s.trim()).filter(s => /^[a-z#0-9][a-z0-9'’()\- ]*$/i.test(s) && s.split(' ').length <= 2 && !/^(and|or|the|note)$/i.test(s));
+    const bare = line.replace(/"[^"]*"/g, '').replace(/^\s*-\s*/, '').replace(/\([^)]*\s[^)]*\)/g, '').replace(/\([^)]*\)$/, '').split(/,|;/).map(s => s.trim()).filter(s => /^[a-z#0-9][a-z0-9'’()\- ]*$/i.test(s) && s.split(' ').length <= 2 && !/^(and|or|the|note)$/i.test(s));
     for (const item of [...quoted, ...bare.map(q => ({ q, context: null }))]) {
       const q = item.q;
       if (/^(em-dash|triple|rhetorical|exclamation|more than|counts of|competitor|any mention|stated)/i.test(q)) continue;
