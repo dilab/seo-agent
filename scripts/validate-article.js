@@ -81,7 +81,9 @@ if (!isMd) {
 // ---------- body: headings, words, placeholders ----------
 
 const body = isMd ? text.replace(/^---[\s\S]*?---\s*/, '') : stripBlade(text);
-const h1s = isMd ? (body.match(/^#\s+.+$/gm) || []) : [...text.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].map(m => clean(m[1]));
+const mdH1s = isMd ? (body.match(/^#\s+.+$/gm) || []) : [];
+// Markdown products whose layout renders the frontmatter title as the <h1> (and forbid a body H1): the title is the H1.
+const h1s = isMd ? (mdH1s.length ? mdH1s : fm.title ? [fm.title] : []) : [...text.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1>/gi)].map(m => clean(m[1]));
 const h2s = isMd ? (body.match(/^##\s+.+$/gm) || []) : [...text.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)].map(m => clean(m[1]));
 if (h1s.length !== 1) fail('h1', `${h1s.length} <h1> elements (need exactly 1)`);
 if (h2s.length < 3) fail('h2', `${h2s.length} <h2> sections (need ≥ 3)`);
@@ -103,7 +105,7 @@ const knownPath = p => { const k = '/' + String(p).replace(/^\/|\/$/g, ''); retu
 const ids = new Set([...text.matchAll(/<[a-z][^>]*>/gi)].map(m => attr(m[0], 'id')).filter(Boolean));
 let externals = 0;
 const hrefs = isMd
-  ? [...body.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)].map(m => m[1])
+  ? [...body.replace(/!\[[^\]]*\]\([^)]*\)/g, ' ').matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)].map(m => m[1]) // ![alt](img) removed first; images are checked below
   : [...text.matchAll(/<a\b[^>]*>/gi)].map(m => attr(m[0], 'href')).filter(h => h !== null);
 for (const h of hrefs) {
   if (/^https?:\/\//.test(h)) { externals++; continue; }
