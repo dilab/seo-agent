@@ -2,7 +2,7 @@
 // dfs.js — DataForSEO REST client with compact extractors. Prints JSON to stdout.
 //
 //   node dfs.js check
-//   node dfs.js serp        --keyword "k" [--location 2840] [--language en] [--domain recordmover.com] [--save dir]
+//   node dfs.js serp        --keyword "k" [--location 2840] [--language en] [--domain recordmover.com] [--save dir] [--no-resolve] [--resolve-budget 60]
 //   node dfs.js overview    --keywords "a|b|c"                       volume, KD, intent, cpc per keyword (Labs, ≤700)
 //   node dfs.js suggestions --keyword "seed" [--limit 200] [--min-volume 20] [--max-kd 60] [--exact]
 //   node dfs.js ideas       --keywords "s1|s2" [--limit 200] [--min-volume 20] [--max-kd 60]
@@ -64,7 +64,9 @@ async function main() {
   if (cmd === 'serp') {
     if (!args.keyword) usage('serp needs --keyword');
     const raw = await run('/serp/google/organic/live/advanced', [{ keyword: args.keyword, location_code: location, language_code: language, depth: 10, device: 'desktop' }], args.keyword);
-    return out(EXTRACT.serp(raw, args));
+    const result = EXTRACT.serp(raw, args);
+    if (!args['no-resolve']) await resolveRedirects(result, args);
+    return out(result);
   }
 
   if (cmd === 'overview') {
@@ -143,10 +145,18 @@ const EXTRACT = {
     const ours = cleanDomain(a.domain || '');
     const isOurs = d => ours && d && cleanDomain(d).endsWith(ours);
 
-    const organic = items.filter(i => i.type === 'organic').map(i => ({
-      rank: i.rank_group, abs: i.rank_absolute, url: i.url, domain: i.domain, title: i.title,
-      description: i.description || null, ours: isOurs(i.domain) || undefined,
-    }));
+    // Google now serves some organic links as google.com/goto?url=<opaque token>; DataForSEO passes them
+    // through with domain "google.com". Keep the token in `redirect`, take the domain from the breadcrumb
+    // until resolveRedirects() swaps in the real URL (network; `extract` stays offline and uses the hint).
+    const organic = items.filter(i => i.type === 'organic').map(i => {
+      const goto = isGoto(i.url);
+      const domain = goto ? domainHint(i) : i.domain;
+      return {
+        rank: i.rank_group, abs: i.rank_absolute, url: i.url, domain, title: i.title,
+        description: i.description || null, ours: isOurs(domain) || undefined,
+        redirect: goto ? i.url : undefined, unresolved: goto || undefined,
+      };
+    });
     const paaBlock = items.find(i => i.type === 'people_also_ask');
     const paa = ((paaBlock && paaBlock.items) || []).map(i => i.title).filter(Boolean);
     const fs_ = items.find(i => i.type === 'featured_snippet');
@@ -161,13 +171,13 @@ const EXTRACT = {
       results_count: res.se_results_count, check_url: res.check_url,
       top: top10, paa,
       features: {
-        featured_snippet: !!fs_, featured_snippet_domain: fs_ ? fs_.domain : null,
+        featured_snippet: !!fs_, featured_snippet_domain: fs_ ? (isGoto(fs_.url) ? domainHint(fs_) : fs_.domain) : null,
         ai_overview: !!aio, ai_overview_async: aio ? !!aio.asynchronous_ai_overview : false, ai_overview_sources: [...new Set(aioRefs)],
         video: has('video'), knowledge_graph: has('knowledge_graph'), discussions: has('discussions_and_forums'),
         people_also_ask: has('people_also_ask'), shopping: has('shopping'), paid: has('paid'),
       },
       item_types: types,
-      big_brands_in_top10: top10.filter(o => BIG_BRANDS.some(b => (o.domain || '').endsWith(b))).length,
+      big_brands_in_top10: bigBrands(top10),
       ours: organic.filter(o => o.ours).map(o => ({ rank: o.rank, url: o.url })),
       cost: raw.cost || 0,
     };
@@ -371,6 +381,68 @@ function collectRefs(node, acc = []) {
   return acc;
 }
 
+// ---------- google.com/goto redirects ----------
+
+const GOTO_RE = /^https?:\/\/(www\.)?google\.[a-z.]+\/goto\?/i;
+const SITE_NAMES = { youtube: 'youtube.com', reddit: 'reddit.com', facebook: 'facebook.com', quora: 'quora.com', linkedin: 'linkedin.com', instagram: 'instagram.com', tiktok: 'tiktok.com', medium: 'medium.com', x: 'x.com' };
+
+function isGoto(url) { return GOTO_RE.test(String(url || '')); }
+
+// Best offline guess at the real domain of a goto result: the breadcrumb when it is a URL
+// ("https://support.zoom.com › article"), else a known site name ("YouTube · Zoom"), else null.
+function domainHint(item) {
+  const m = /^(https?:\/\/[^\s›]+)/.exec(String(item.breadcrumb || '').trim());
+  if (m) return cleanDomain(m[1]);
+  const name = String(item.website_name || '').split('·')[0].trim().toLowerCase();
+  return SITE_NAMES[name] || null;
+}
+
+function bigBrands(top10) { return top10.filter(o => BIG_BRANDS.some(b => (o.domain || '').endsWith(b))).length; }
+
+// Follow each goto link's redirects by hand, stopping at the first Location that leaves Google,
+// so the target site itself is never requested. Sequential on purpose: Google throttles goto
+// requests after a few in a row by answering 200 with <meta http-equiv="refresh" content="N;url=/goto?...">
+// and a growing N (3, 5, 10, 19 s). We honour the refresh while the total wait stays inside
+// --resolve-budget seconds (default 60); links are resolved in rank order, so the top results that
+// `parse` reads go first. Unresolvable links keep `unresolved: true` and the breadcrumb domain.
+// Recomputes `ours` and `big_brands_in_top10` from the resolved domains.
+async function resolveRedirects(result, a = {}, fetchImpl = fetch, sleep = ms => new Promise(r => setTimeout(r, ms))) {
+  const ours = cleanDomain(a.domain || '');
+  let budgetMs = 1000 * Number(a['resolve-budget'] || 60);
+  const follow = async start => {
+    let u = start;
+    try {
+      for (let hop = 0; hop < 8; hop++) {
+        const r = await fetchImpl(u, { redirect: 'manual', headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(10000) });
+        let next = r.headers.get('location');
+        if (!next && r.status === 200 && typeof r.text === 'function') {
+          const tag = ((await r.text()).match(/<meta\b[^>]*>/gi) || []).find(t => /http-equiv=["']?refresh/i.test(t)) || '';
+          const m = /content=["'](\d+)\s*;\s*url=([^"']+)["']/i.exec(tag);
+          if (!m) return null;
+          const waitMs = 1000 * Number(m[1]);
+          if (waitMs > budgetMs) return null;
+          budgetMs -= waitMs; await sleep(waitMs);
+          next = m[2].replace(/&amp;/g, '&');
+        }
+        if (!next) return null;
+        u = new URL(next, u).href;
+        if (!isGoto(u)) return u;
+      }
+    } catch { /* fall through */ }
+    return null;
+  };
+  for (const o of result.top.filter(o => o.redirect).sort((x, y) => x.rank - y.rank)) {
+    const u = await follow(o.redirect);
+    if (u) { o.url = u; o.domain = cleanDomain(u); delete o.unresolved; }
+  }
+  for (const o of result.top) o.ours = (ours && o.domain && o.domain.endsWith(ours)) || undefined;
+  result.ours = result.top.filter(o => o.ours).map(o => ({ rank: o.rank, url: o.url }));
+  result.big_brands_in_top10 = bigBrands(result.top.filter(o => o.rank <= 10));
+  const left = result.top.filter(o => o.unresolved).length;
+  if (left) result.unresolved_redirects = left;
+  return result;
+}
+
 function levelNum(l) { const m = /h?(\d)/i.exec(String(l || '')); return m ? Number(m[1]) : 2; }
 function cleanDomain(d) { return String(d || '').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '').toLowerCase(); }
 
@@ -424,4 +496,4 @@ function usage(msg) {
 }
 
 if (require.main === module) main().catch(e => { process.stdout.write(JSON.stringify({ error: String(e.message || e) }) + '\n'); process.exit(1); });
-module.exports = { shingleHashes };
+module.exports = { shingleHashes, EXTRACT, resolveRedirects, isGoto, domainHint };

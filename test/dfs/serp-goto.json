@@ -1,0 +1,87 @@
+{
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "cost": 0.002,
+ "tasks": [
+  {
+   "status_code": 20000,
+   "result": [
+    {
+     "keyword": "zoom recording limit",
+     "location_code": 2840,
+     "language_code": "en",
+     "item_types": [
+      "organic"
+     ],
+     "items": [
+      {
+       "type": "organic",
+       "rank_group": 1,
+       "rank_absolute": 2,
+       "domain": "google.com",
+       "title": "Changing basic and advanced cloud recording settings",
+       "url": "https://google.com/goto?url=CAEShgEBxCJF19YCUl8Tg6F58ufSCr3052LLhoaqLCNfjWVhSLpqG4ixC_sxiYRuYPbnrRB-oSYD2t_dwoIB682mJoqeksdtuGSlv-u-qY8mDinSkaamQoWy6SpxhfBYOwURhA8XI6ADFZHKtDmPUe4y4H0NZZe6inXJFF5V_pZyyLa6o-4Hu0ArYA",
+       "breadcrumb": "https://support.zoom.com › article",
+       "website_name": "Zoom",
+       "description": "Record one audio file for all participants : One file is processed for the entire audio of the recording. · Record a separate audio file of each participant: ... Read more"
+      },
+      {
+       "type": "organic",
+       "rank_group": 2,
+       "rank_absolute": 4,
+       "domain": "google.com",
+       "title": "How to Manage Zoom Cloud Recordings & Auto-Delete Files",
+       "url": "https://google.com/goto?url=CAESaAHEIkXXvlRtQPphHFMKCn3BHLsBYAiOpR1zb8lO7B9GEdfY6fcC3MgMyKgW8V1QStDSb7gF15A3jpIcnPtPVqks6xufgafSqYuUyp6JOiuBDEdoynCrWeueCTlZ7D3UR5mNo0L8d5s0",
+       "breadcrumb": "92.7K+ views  ·  2 years ago",
+       "website_name": "YouTube · Zoom",
+       "description": null
+      },
+      {
+       "type": "organic",
+       "rank_group": 3,
+       "rank_absolute": 5,
+       "domain": "google.com",
+       "title": "Zoom Meeting Recording Time Limit",
+       "url": "https://google.com/goto?url=CAESgwEBxCJF12voAGQOlXJgUf5nSjF5xkmjuM_IMuaLUGl4pw9ZLoaOI6jh6w2wm0BUMSxZHcY3Jq7-A1XZERdQypGwRKr0zm8rErziaPuJVkB-TQc8-6-Wn1rPu1W-Rm_tQBto9nbUYKF5vOR9AB0YDG02zRX573LmDGeO-Get8tfWHfVBuA",
+       "breadcrumb": "https://www.facebook.com › fb-answers › zoom-meetin...",
+       "website_name": "Facebook",
+       "description": "Free Zoom meetings end after 40 minutes for 3+ participants, while paid accounts have no time limit. Recording length depends on your account type and ... Read more"
+      },
+      {
+       "type": "organic",
+       "rank_group": 4,
+       "rank_absolute": 6,
+       "domain": "google.com",
+       "title": "Can you record Zoom meetings for free? Yes, and here's ...",
+       "url": "https://google.com/goto?url=CAESrwEBxCJF1-tDNyRYUfAcRDub5o5OVHyO2K8jh-BpV__VXX4n4T0ZQl8WrkmmNtR8GUwAgQBbIHGQx4rc4C_qc0jTKjsf8SSOI13XnD2oAoB0dWBFTAfZgXrvR_HhP_lWm_svbuBtmThrgwAW2DAonn_t1Q_XtHMTuyYkegQgvn2eu_OZDKWygrKLPDZQ11STZiw5YTHk7GRwHWkuZB97Fa9kywkjDA5njebnY6bQ4RCx",
+       "breadcrumb": "https://www.granola.ai › Blog",
+       "website_name": "Granola",
+       "description": "Jun 5, 2026 — Group meetings with three or more participants cut off automatically at 40 minutes on the free plan, per Zoom's free plan documentation. Read more"
+      },
+      {
+       "type": "organic",
+       "rank_group": 5,
+       "rank_absolute": 7,
+       "domain": "google.com",
+       "title": "Record limit based on meeting length? : r/Zoom",
+       "url": "https://google.com/goto?url=CAESkAEBxCJF15NFPFkiJOaAhaiMKNBqFsf8UQZwHG5ckMt-cqE4P1hW_TxShudL5gVM4CacdgZJsCNIlfQrl3eQtRRv8aL9YdzsrUIaFS4VXfn0ePgODy0wtKMp31i5htVGZ37WeCtcDOtcd3kd5i8AHgEsNN4v3NMxKQgae0pVlMHmgwk59jNpB4AzJrN1HzwuZsM",
+       "breadcrumb": "1 comment  ·  5 years ago",
+       "website_name": "Reddit · r/Zoom",
+       "description": "If I close the meeting and reopen it the 3ish hour limit starts over again. I can record an unlimited amount within that window of time. Has ... Read more"
+      },
+      {
+       "type": "organic",
+       "rank_group": 6,
+       "rank_absolute": 9,
+       "domain": "recordmover.com",
+       "title": "Zoom Cloud Storage Limits by Plan",
+       "url": "https://recordmover.com/zoom-recording-storage-limits",
+       "breadcrumb": "https://recordmover.com › zoom-recording-storage-limits",
+       "website_name": "RecordMover"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
